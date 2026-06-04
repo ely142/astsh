@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -g -Wall -Wextra -std=gnu17 -fsanitize=address -Iinclude
-LDFLAGS = -fsanitize=address
+CFLAGS = -g -Wall -Wextra -std=gnu17 -Iinclude
+LDFLAGS =
 
 SRC_DIR = src
 OBJ_DIR = build
@@ -8,12 +8,20 @@ INC_DIR = include
 
 TARGETS = $(OBJ_DIR)/shell $(OBJ_DIR)/looper
 
+SHELL_OBJS = $(OBJ_DIR)/main.o \
+             $(OBJ_DIR)/line_parser.o \
+             $(OBJ_DIR)/history.o \
+             $(OBJ_DIR)/jobs.o \
+             $(OBJ_DIR)/executor.o
+
+LOOPER_OBJS = $(OBJ_DIR)/looper.o
+
 all: $(TARGETS) 
 
-$(OBJ_DIR)/shell: $(OBJ_DIR)/shell.o $(OBJ_DIR)/line_parser.o
+$(OBJ_DIR)/shell: $(SHELL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-$(OBJ_DIR)/looper: $(OBJ_DIR)/looper.o
+$(OBJ_DIR)/looper: $(LOOPER_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c

@@ -12,11 +12,17 @@ SHELL_OBJS = $(OBJ_DIR)/main.o \
              $(OBJ_DIR)/line_parser.o \
              $(OBJ_DIR)/history.o \
              $(OBJ_DIR)/jobs.o \
-             $(OBJ_DIR)/executor.o
+             $(OBJ_DIR)/executor.o \
+			 $(OBJ_DIR)/lexer.o 
 
 LOOPER_OBJS = $(OBJ_DIR)/looper.o
 
 all: $(TARGETS) 
+
+test: src/lexer.c tests/test_lexer.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -o $(OBJ_DIR)/test_lexer src/lexer.c tests/test_lexer.c
+	./$(OBJ_DIR)/test_lexer
 
 $(OBJ_DIR)/shell: $(SHELL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ 

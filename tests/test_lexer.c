@@ -19,6 +19,7 @@ void test_simple_command() {
 
     assert(tokens[2].type == TOKEN_EOF);
 
+    lexer_print_tokens(tokens);
     lexer_free_tokens(tokens);
     TEST_PASS("test_simple_command");
 }
@@ -36,6 +37,7 @@ void test_pipeline_and_redirects() {
     assert(tokens[7].type == TOKEN_WORD);      // final.txt
     assert(tokens[8].type == TOKEN_EOF);
 
+    lexer_print_tokens(tokens);
     lexer_free_tokens(tokens);
     TEST_PASS("test_pipeline_and_redirects");
 }
@@ -51,6 +53,7 @@ void test_empty_quotes() {
 
     assert(tokens[2].type == TOKEN_EOF);
 
+    lexer_print_tokens(tokens);
     lexer_free_tokens(tokens);
     TEST_PASS("test_empty_quotes");
 }

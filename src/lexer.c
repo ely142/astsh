@@ -14,7 +14,7 @@ static void append_token(token_t **tokens, int *tokens_capacity, int *tokens_siz
         *tokens_capacity *= 2;
         token_t *temp = realloc(*tokens, (*tokens_capacity) * sizeof(token_t));
         if (!temp) {
-            fprintf(stderr, "[ERROR] Memory reallocation failed in lexer\n");
+            fprintf(stderr, "[ERROR] memory reallocation failed in lexer\n");
             exit(1);
         }
         *tokens = temp;
@@ -50,7 +50,7 @@ token_t *lexer_tokenize(const char *input) {
     bool is_quoted_token = false;
 
     if (!tokens) {
-        fprintf(stderr, "[ERROR] Memory allocation failed\n");
+        fprintf(stderr, "[ERROR] memory allocation failed\n");
         exit(1);
     }
 

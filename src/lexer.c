@@ -14,7 +14,7 @@ static void append_token(token_t **tokens, int *tokens_capacity, int *tokens_siz
         *tokens_capacity *= 2;
         token_t *temp = realloc(*tokens, (*tokens_capacity) * sizeof(token_t));
         if (!temp) {
-            fprintf(stderr, "[ERROR] memory reallocation failed in lexer\n");
+            fprintf(stderr, "[ERROR] memory reallocation failed in lexer.\n");
             exit(1);
         }
         *tokens = temp;
@@ -22,6 +22,20 @@ static void append_token(token_t **tokens, int *tokens_capacity, int *tokens_siz
     (*tokens)[*tokens_size].type = type;
     (*tokens)[*tokens_size].value = value;
     (*tokens_size)++;
+}
+
+static void finalize_word_buffer(token_t **tokens, int *tokens_capacity, int *tokens_size, char *buffer, int *idx,
+                                 bool *is_quoted) {
+    buffer[*idx] = '\0';
+    char *temp_word = strdup(buffer);
+    if (!temp_word) {
+        fprintf(stderr, "[ERROR] memory allocation failed for string duplication in lexer.\n");
+        exit(1);
+    }
+    append_token(tokens, tokens_capacity, tokens_size, TOKEN_WORD, temp_word);
+
+    *idx = 0;
+    *is_quoted = false;
 }
 
 static const char *token_type_to_string(token_type_t type) {
@@ -50,7 +64,7 @@ token_t *lexer_tokenize(const char *input) {
     bool is_quoted_token = false;
 
     if (!tokens) {
-        fprintf(stderr, "[ERROR] memory allocation failed\n");
+        fprintf(stderr, "[ERROR] memory allocation failed in lexer.\n");
         exit(1);
     }
 
@@ -67,19 +81,15 @@ token_t *lexer_tokenize(const char *input) {
                 if (ch == '"') {
                     state = STATE_IN_QUOTES;
                     is_quoted_token = true;
-                } else if (ch == ' ' || ch == '\t') {
+                } else if (ch == ' ' || ch == '\t' || ch == '\n') {
                     if (word_idx > 0 || is_quoted_token) {
-                        word_buffer[word_idx] = '\0';
-                        append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_WORD, strdup(word_buffer));
-                        word_idx = 0;
-                        is_quoted_token = false;
+                        finalize_word_buffer(&tokens, &tokens_capacity, &tokens_size, word_buffer, &word_idx,
+                                             &is_quoted_token);
                     }
                 } else if (ch == '|' || ch == '<' || ch == '>' || ch == '&') {
                     if (word_idx > 0 || is_quoted_token) { // For cases like: "grep> out.txt"
-                        word_buffer[word_idx] = '\0';
-                        append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_WORD, strdup(word_buffer));
-                        word_idx = 0;
-                        is_quoted_token = false;
+                        finalize_word_buffer(&tokens, &tokens_capacity, &tokens_size, word_buffer, &word_idx,
+                                             &is_quoted_token);
                     }
                     if (ch == '|')
                         append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_PIPE, NULL);
@@ -90,7 +100,7 @@ token_t *lexer_tokenize(const char *input) {
                     else if (ch == '&')
                         append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_AMPERSAND, NULL);
                 } else {
-                    if (word_idx >= WORD_BUFFER_SIZE) {
+                    if (word_idx >= WORD_BUFFER_SIZE - 1) {
                         goto handle_overflow;
                     }
                     word_buffer[word_idx++] = ch;
@@ -101,7 +111,7 @@ token_t *lexer_tokenize(const char *input) {
                 if (ch == '"') {
                     state = STATE_NORMAL;
                 } else {
-                    if (word_idx >= WORD_BUFFER_SIZE) {
+                    if (word_idx >= WORD_BUFFER_SIZE - 1) {
                         goto handle_overflow;
                     }
                     word_buffer[word_idx++] = ch;
@@ -119,8 +129,7 @@ token_t *lexer_tokenize(const char *input) {
 
     // Cleanup any lingering word at the end of the string not followed by a space afterwards
     if (word_idx > 0 || is_quoted_token) {
-        word_buffer[word_idx] = '\0';
-        append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_WORD, strdup(word_buffer));
+        finalize_word_buffer(&tokens, &tokens_capacity, &tokens_size, word_buffer, &word_idx, &is_quoted_token);
     }
 
     // Add the EOF token so the parser knows when to stop

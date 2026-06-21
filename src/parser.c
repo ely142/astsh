@@ -180,3 +180,49 @@ static ast_node_t *parse_command(token_t **curr) {
 
     return root;
 }
+
+void parser_print_ast(ast_node_t *root, int level) {
+    if (!root) {
+        return;
+    }
+
+    for (int i = 0; i < level; i++) {
+        printf("  |   ");
+    }
+
+    if (level > 0) {
+        printf("+-- ");
+    }
+
+    switch (root->type) {
+        case NODE_COMMAND:
+            printf("[COMMAND] ");
+            if (root->data.command.argv) {
+                for (int i = 0; root->data.command.argv[i] != NULL; i++) {
+                    printf("\"%s\" ", root->data.command.argv[i]);
+                }
+            }
+            printf("\n");
+            break;
+
+        case NODE_PIPE:
+            printf("[PIPE]\n");
+            parser_print_ast(root->data.pipe.left, level + 1);
+            parser_print_ast(root->data.pipe.right, level + 1);
+            break;
+
+        case NODE_REDIRECT:
+            printf("[REDIRECT] fd: %d -> file: \"%s\"\n", root->data.redirect.target_fd, root->data.redirect.file);
+            parser_print_ast(root->data.redirect.child, level + 1);
+            break;
+
+        case NODE_BACKGROUND:
+            printf("[BACKGROUND] (&)\n");
+            parser_print_ast(root->data.background.child, level + 1);
+            break;
+
+        default:
+            printf("[UNKNOWN NODE]\n");
+            break;
+    }
+}

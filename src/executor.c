@@ -9,6 +9,11 @@
 
 extern int debug_mode;
 
+static void exec_command(node_command_t *cmd) {}
+static void exec_pipe(node_pipe_t *pipe_node);
+static void exec_redirect(node_redirect_t *redir);
+static void exec_background(node_background_t *bg);
+
 void execute(cmd_line *cmd) {
 
     pid_t pid;
@@ -157,4 +162,53 @@ int handle_pipe(cmd_line *cmd) {
         }
     }
     return 1;
+}
+
+static void exec_background(node_background_t *bg) {
+    if (!bg || !bg->child)
+        return;
+
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        fprintf(stderr, "[ERROR] [PARENT PID %d] process creation failed.\n", getpid());
+        return;
+    }
+
+    if (pid == 0) {
+        execute_ast(bg->child);
+
+        // Prevent the child from returning up the call stack and cloning the shell
+        _exit(EXIT_SUCCESS);
+    }
+
+    if (debug_mode) {
+        printf("[Started background job, PID: %d]\n", pid);
+    }
+}
+
+void execute_ast(ast_node_t *node) {
+    if (!node)
+        return;
+
+    switch (node->type) {
+        case NODE_COMMAND:
+            exec_command(&node->data.command);
+            break;
+
+        case NODE_PIPE:
+            exec_pipe(&node->data.pipe);
+            break;
+
+        case NODE_REDIRECT:
+            exec_redirect(&node->data.redirect);
+            break;
+
+        case NODE_BACKGROUND:
+            exec_background(&node->data.background);
+            break;
+
+        default:
+            break;
+    }
 }

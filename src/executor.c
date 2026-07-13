@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -164,29 +165,6 @@ int handle_pipe(cmd_line *cmd) {
     return 1;
 }
 
-static void exec_background(node_background_t *bg) {
-    if (!bg || !bg->child)
-        return;
-
-    pid_t pid = fork();
-
-    if (pid < 0) {
-        fprintf(stderr, "[ERROR] [PARENT PID %d] process creation failed.\n", getpid());
-        return;
-    }
-
-    if (pid == 0) {
-        execute_ast(bg->child);
-
-        // Prevent the child from returning up the call stack and cloning the shell
-        _exit(EXIT_SUCCESS);
-    }
-
-    if (debug_mode) {
-        printf("[Started background job, PID: %d]\n", pid);
-    }
-}
-
 void execute_ast(ast_node_t *node) {
     if (!node)
         return;
@@ -210,5 +188,99 @@ void execute_ast(ast_node_t *node) {
 
         default:
             break;
+    }
+}
+
+static void exec_background(node_background_t *bg) {
+    if (!bg || !bg->child)
+        return;
+
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        fprintf(stderr, "[ERROR] [PARENT PID %d] process creation failed: %s.\n", getpid(), strerror(errno));
+        return;
+    }
+
+    if (pid == 0) {
+        execute_ast(bg->child);
+
+        // Prevent the child from returning up the call stack and cloning the shell
+        _exit(EXIT_SUCCESS);
+    }
+
+    if (debug_mode) {
+        printf("[Started background job, PID: %d]\n", pid);
+    }
+}
+
+static void exec_pipe(node_pipe_t *pipe_node) {
+    if (!pipe_node || !pipe_node->left || !pipe_node->right) {
+        return;
+    }
+
+    int fd[2];
+
+    if (pipe(fd) < 0) {
+        fprintf(stderr, "[ERROR] pipe creation failed: %s.\n", strerror(errno));
+        return;
+    }
+
+    pid_t left_pid = fork();
+    if (left_pid < 0) {
+        fprintf(stderr, "[ERROR] left fork failed: %s\n", strerror(errno));
+        close(fd[0]);
+        close(fd[1]);
+        return;
+    }
+
+    if (left_pid == 0) {
+        // Route stdout to pipe write-end
+        if (dup2(fd[1], STDOUT_FILENO) == -1) {
+            fprintf(stderr, "[ERROR] left dup2 failure: %s.\n", strerror(errno));
+            _exit(EXIT_FAILURE);
+        }
+
+        // Close inherited FDs to ensure EOF triggers correctly
+        close(fd[0]);
+        close(fd[1]);
+
+        execute_ast(pipe_node->left);
+        _exit(EXIT_SUCCESS);
+    }
+
+    pid_t right_pid = fork();
+
+    if (right_pid < 0) {
+        fprintf(stderr, "[ERROR] right fork failed: %s\n", strerror(errno));
+        close(fd[0]);
+        close(fd[1]);
+        // Reap the orphaned left child (killed via SIGPIPE) to prevent a zombie process
+        waitpid(left_pid, NULL, 0);
+        return;
+    }
+
+    if (right_pid == 0) {
+        // Route STDIN from pipe read-end
+        if (dup2(fd[0], STDIN_FILENO) == -1) {
+            fprintf(stderr, "[ERROR] right dup2 failure: %s.\n", strerror(errno));
+            _exit(EXIT_FAILURE);
+        }
+        close(fd[0]);
+        close(fd[1]);
+
+        execute_ast(pipe_node->right);
+        _exit(EXIT_SUCCESS);
+    }
+
+    // Parent cleanup: close pipe FDs to prevent deadlock
+    close(fd[0]);
+    close(fd[1]);
+
+    if (waitpid(left_pid, NULL, 0) == -1) {
+        fprintf(stderr, "[ERROR] waitpid(left) failed for Child PID %d: %s\n", left_pid, strerror(errno));
+    }
+    if (waitpid(right_pid, NULL, 0) == -1) {
+        fprintf(stderr, "[ERROR] waitpid(right) failed for Child PID %d: %s\n", right_pid, strerror(errno));
     }
 }

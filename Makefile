@@ -32,12 +32,20 @@ test_parser: src/lexer.c src/parser.c tests/test_parser.c
 	$(CC) $(CFLAGS) -o $(OBJ_DIR)/test_parser src/lexer.c src/parser.c tests/test_parser.c
 	./$(OBJ_DIR)/test_parser
 
+test_executor: src/lexer.c src/parser.c src/executor.c tests/test_executor.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -o $(OBJ_DIR)/test_executor src/lexer.c src/parser.c src/executor.c tests/test_executor.c
+	./$(OBJ_DIR)/test_executor
+	
 valgrind_lexer: test_lexer
 	$(VALGRIND) ./$(OBJ_DIR)/test_lexer
 
 valgrind_parser: test_parser
 	$(VALGRIND) ./$(OBJ_DIR)/test_parser
 
+valgrind_executor: test_executor
+	$(VALGRIND) ./$(OBJ_DIR)/test_executor
+	
 $(OBJ_DIR)/shell: $(SHELL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ 
 

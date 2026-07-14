@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -13,6 +14,11 @@ extern int debug_mode;
 static void execute_process(ast_node_t *node);
 static void exec_pipe(node_pipe_t *pipe_node);
 static void exec_background(node_background_t *bg);
+
+/* =========================================================
+ * LEGACY CODE (Temporarily disabled for AST testing)
+ * ========================================================= */
+#if 0
 
 void execute(cmd_line *cmd) {
 
@@ -163,6 +169,8 @@ int handle_pipe(cmd_line *cmd) {
     }
     return 1;
 }
+
+#endif
 
 void executor_run_ast(ast_node_t *node) {
     if (!node)

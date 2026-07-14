@@ -209,59 +209,59 @@ void executor_run_ast(ast_node_t *node) {
 }
 
 static void execute_process(ast_node_t *node) {
-    if (!node) {
-        _exit(EXIT_FAILURE);
-    }
+    while (node) {
+        switch (node->type) {
+            case NODE_COMMAND: {
+                char **argv = node->data.command.argv;
 
-    switch (node->type) {
-        case NODE_COMMAND: {
-            char **argv = node->data.command.argv;
-
-            if (argv && argv[0]) {
-                execvp(argv[0], argv);
-                fprintf(stderr, "[ERROR] %s: %s\n", argv[0], strerror(errno));
+                if (argv && argv[0]) {
+                    execvp(argv[0], argv);
+                    fprintf(stderr, "[ERROR] %s: %s\n", argv[0], strerror(errno));
+                }
+                _exit(EXIT_FAILURE);
             }
-            _exit(EXIT_FAILURE);
+
+            case NODE_REDIRECT: {
+                node_redirect_t *redir = &node->data.redirect;
+
+                if (!redir || !redir->child || !redir->file) {
+                    fprintf(stderr, "[ERROR] invalid redirection node execution.\n");
+                    _exit(EXIT_FAILURE);
+                }
+
+                int fd = open(redir->file, redir->open_flags, 0644);
+
+                if (fd < 0) {
+                    fprintf(stderr, "[ERROR] open failed for %s: %s\n", redir->file, strerror(errno));
+                    _exit(EXIT_FAILURE);
+                }
+
+                if (dup2(fd, redir->target_fd) == -1) {
+                    fprintf(stderr, "[ERROR] dup2 failure: %s\n", strerror(errno));
+                    _exit(EXIT_FAILURE);
+                }
+                close(fd);
+
+                // Tail-call elimination: traverse to the child node and loop
+                // instead of recursing to prevent stack frame accumulation
+                node = redir->child;
+                break;
+            }
+
+            case NODE_PIPE:
+                exec_pipe(&node->data.pipe);
+                _exit(EXIT_SUCCESS);
+
+            case NODE_BACKGROUND:
+                exec_background(&node->data.background);
+                _exit(EXIT_SUCCESS);
+
+            default:
+                _exit(EXIT_FAILURE);
         }
-
-        case NODE_REDIRECT: {
-            node_redirect_t *redir = &node->data.redirect;
-
-            if (!redir || !redir->child || !redir->file) {
-                fprintf(stderr, "[ERROR] invalid redirection node execution.\n");
-                _exit(EXIT_FAILURE);
-            }
-
-            int fd = open(redir->file, redir->open_flags, 0644);
-
-            if (fd < 0) {
-                fprintf(stderr, "[ERROR] open failed for %s: %s\n", redir->file, strerror(errno));
-                _exit(EXIT_FAILURE);
-            }
-
-            if (dup2(fd, redir->target_fd) == -1) {
-                fprintf(stderr, "[ERROR] dup2 failure: %s\n", strerror(errno));
-                _exit(EXIT_FAILURE);
-            }
-            close(fd);
-
-            execute_process(redir->child);
-
-            // Fallback safety termination in case execute_process fails to exit
-            _exit(EXIT_SUCCESS);
-        }
-
-        case NODE_PIPE:
-            exec_pipe(&node->data.pipe);
-            _exit(EXIT_SUCCESS);
-
-        case NODE_BACKGROUND:
-            exec_background(&node->data.background);
-            _exit(EXIT_SUCCESS);
-
-        default:
-            _exit(EXIT_FAILURE);
     }
+    // Fallback if node becomes NULL
+    _exit(EXIT_FAILURE);
 }
 
 static void exec_background(node_background_t *bg) {

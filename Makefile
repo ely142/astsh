@@ -45,6 +45,9 @@ valgrind_parser: test_parser
 
 valgrind_executor: test_executor
 	$(VALGRIND) ./$(OBJ_DIR)/test_executor
+
+shell_valgrind: $(OBJ_DIR)/shell
+	$(VALGRIND) ./$(OBJ_DIR)/shell
 	
 $(OBJ_DIR)/shell: $(SHELL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ 

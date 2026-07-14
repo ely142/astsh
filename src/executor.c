@@ -10,9 +10,8 @@
 
 extern int debug_mode;
 
-static void exec_command(node_command_t *cmd) {}
+static void execute_process(ast_node_t *node);
 static void exec_pipe(node_pipe_t *pipe_node);
-static void exec_redirect(node_redirect_t *redir);
 static void exec_background(node_background_t *bg);
 
 void execute(cmd_line *cmd) {
@@ -170,16 +169,26 @@ void execute_ast(ast_node_t *node) {
         return;
 
     switch (node->type) {
+        // Foreground tasks: fork once to protect the parent shell
         case NODE_COMMAND:
-            exec_command(&node->data.command);
+        case NODE_REDIRECT: {
+            pid_t pid = fork();
+
+            if (pid < 0) {
+                fprintf(stderr, "[ERROR] foreground fork failed: %s.\n", strerror(errno));
+                return;
+            }
+
+            if (pid == 0) {
+                execute_process(node);
+            }
+
+            waitpid(pid, NULL, 0);
             break;
+        }
 
         case NODE_PIPE:
             exec_pipe(&node->data.pipe);
-            break;
-
-        case NODE_REDIRECT:
-            exec_redirect(&node->data.redirect);
             break;
 
         case NODE_BACKGROUND:
@@ -188,6 +197,62 @@ void execute_ast(ast_node_t *node) {
 
         default:
             break;
+    }
+}
+
+static void execute_process(ast_node_t *node) {
+    if (!node) {
+        _exit(EXIT_FAILURE);
+    }
+
+    switch (node->type) {
+        case NODE_COMMAND: {
+            char **argv = node->data.command.argv;
+
+            if (argv && argv[0]) {
+                execvp(argv[0], argv);
+                fprintf(stderr, "[ERROR] %s: %s\n", argv[0], strerror(errno));
+            }
+            _exit(EXIT_FAILURE);
+        }
+
+        case NODE_REDIRECT: {
+            node_redirect_t *redir = &node->data.redirect;
+
+            if (!redir || !redir->child || !redir->file) {
+                fprintf(stderr, "[ERROR] invalid redirection node execution.\n");
+                _exit(EXIT_FAILURE);
+            }
+
+            int fd = open(redir->file, redir->open_flags, 0644);
+
+            if (fd < 0) {
+                fprintf(stderr, "[ERROR] open failed for %s: %s\n", redir->file, strerror(errno));
+                _exit(EXIT_FAILURE);
+            }
+
+            if (dup2(fd, redir->target_fd) == -1) {
+                fprintf(stderr, "[ERROR] dup2 failure: %s\n", strerror(errno));
+                _exit(EXIT_FAILURE);
+            }
+            close(fd);
+
+            execute_process(redir->child);
+
+            // Fallback safety termination in case execute_process fails to exit
+            _exit(EXIT_SUCCESS);
+        }
+
+        case NODE_PIPE:
+            exec_pipe(&node->data.pipe);
+            _exit(EXIT_SUCCESS);
+
+        case NODE_BACKGROUND:
+            exec_background(&node->data.background);
+            _exit(EXIT_SUCCESS);
+
+        default:
+            _exit(EXIT_FAILURE);
     }
 }
 
@@ -203,7 +268,7 @@ static void exec_background(node_background_t *bg) {
     }
 
     if (pid == 0) {
-        execute_ast(bg->child);
+        execute_process(bg->child);
 
         // Prevent the child from returning up the call stack and cloning the shell
         _exit(EXIT_SUCCESS);
@@ -245,7 +310,7 @@ static void exec_pipe(node_pipe_t *pipe_node) {
         close(fd[0]);
         close(fd[1]);
 
-        execute_ast(pipe_node->left);
+        execute_process(pipe_node->left);
         _exit(EXIT_SUCCESS);
     }
 
@@ -261,7 +326,7 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     }
 
     if (right_pid == 0) {
-        // Route STDIN from pipe read-end
+        // Route stdin from pipe read-end
         if (dup2(fd[0], STDIN_FILENO) == -1) {
             fprintf(stderr, "[ERROR] right dup2 failure: %s.\n", strerror(errno));
             _exit(EXIT_FAILURE);
@@ -269,7 +334,7 @@ static void exec_pipe(node_pipe_t *pipe_node) {
         close(fd[0]);
         close(fd[1]);
 
-        execute_ast(pipe_node->right);
+        execute_process(pipe_node->right);
         _exit(EXIT_SUCCESS);
     }
 

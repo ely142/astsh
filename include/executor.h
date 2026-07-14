@@ -7,7 +7,7 @@
 void execute(cmd_line *cmd);
 int handle_pipe(cmd_line *cmd);
 
-// Walk the AST and executes the nodes recursively
-void execute_ast(ast_node_t *node);
+// Public entry point: evaluates the AST while shielding the parent shell process
+void executor_run_ast(ast_node_t *node);
 
 #endif

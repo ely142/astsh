@@ -164,7 +164,7 @@ int handle_pipe(cmd_line *cmd) {
     return 1;
 }
 
-void execute_ast(ast_node_t *node) {
+void executor_run_ast(ast_node_t *node) {
     if (!node)
         return;
 

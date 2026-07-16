@@ -1,7 +1,6 @@
 #ifndef JOBS_H
 #define JOBS_H
 
-#include "line_parser.h"
 #include <sys/types.h>
 
 #define TERMINATED -1
@@ -9,13 +8,13 @@
 #define SUSPENDED  0
 
 typedef struct process {
-    cmd_line *cmd;
+    char *cmd_name;
     pid_t pid;
     int status;
     struct process *next;
 } process_t;
 
-void add_process(cmd_line *cmd, pid_t pid);
+void add_process(const char *cmd_name, pid_t pid);
 void print_process_list();
 void free_process_list();
 void update_process_list();

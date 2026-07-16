@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,17 +9,18 @@
 
 static process_t *process_list = NULL;
 
-void add_process(cmd_line *cmd, pid_t pid) {
+void add_process(const char *cmd_name, pid_t pid) {
     process_t *new_proc = (process_t *)malloc(sizeof(process_t));
 
-    if (new_proc == NULL) {
-        fprintf(stderr, "ERROR - failed to allocate memory for the new process\n");
+    if (!new_proc) {
+        fprintf(stderr, "[ERROR] Jobs: memory allocation failed for new process.\n");
         exit(1);
     }
 
-    new_proc->cmd = cmd;
+    // Deep copy the string to ensure memory safety
+    new_proc->cmd_name = strdup(cmd_name ? cmd_name : "unknown_job");
     new_proc->pid = pid;
-    new_proc->status = RUNNING; // default state
+    new_proc->status = RUNNING; // Default state
     new_proc->next = process_list;
     process_list = new_proc;
 }
@@ -26,43 +28,31 @@ void add_process(cmd_line *cmd, pid_t pid) {
 void print_process_list() {
     update_process_list();
     process_t *curr = process_list;
-    process_t *prev = NULL; // head of the list doesn't have a previous node
-    const char *stat;
+    process_t *prev = NULL;
+
+    printf("Index\t\tPID\t\tSTATUS\t\tCommand\n");
     int index = 0;
 
-    printf("Index\t\tPID\t\tSTATUS\t\tCommand & Arguments\n");
-    while (curr != NULL) {
-        if (curr->status == RUNNING) {
-            stat = "Running";
-        } else if (curr->status == SUSPENDED) {
-            stat = "Suspended";
-        } else {
-            stat = "Terminated";
-        }
+    while (curr) {
+        const char *stat = (curr->status == RUNNING)     ? "Running"
+                           : (curr->status == SUSPENDED) ? "Suspended"
+                                                         : "Terminated";
 
-        printf("%d\t\t%d\t\t%s\t\t%s ", index, curr->pid, stat, curr->cmd->arguments[0]);
-
-        for (int i = 1; curr->cmd->arguments[i] != NULL; i++) {
-            printf("%s ", curr->cmd->arguments[i]);
-        }
-        printf("\n");
+        printf("%d\t\t%d\t\t%s\t\t%s\n", index, curr->pid, stat, curr->cmd_name);
         index++;
 
-        if (curr->status == TERMINATED) { // cleaning freshly terminated processes from the list
-            if (prev == NULL) {
+        // Clean freshly terminated processes from the list
+        if (curr->status == TERMINATED) {
+            if (!prev) {
                 process_list = curr->next;
             } else {
                 prev->next = curr->next;
             }
 
-            if (curr->cmd != NULL) {
-                line_parser_free(curr->cmd);
-                curr->cmd = NULL;
-            }
-
             process_t *next = curr->next;
+            free(curr->cmd_name);
             free(curr);
-            curr = next; // prev stays the same
+            curr = next;
         }
 
         else {
@@ -74,13 +64,11 @@ void print_process_list() {
 
 void free_process_list() {
 
-    while (process_list != NULL) {
+    while (process_list) {
         process_t *curr = process_list;
         process_list = process_list->next;
 
-        if (curr->cmd != NULL) {
-            line_parser_free(curr->cmd);
-        }
+        free(curr->cmd_name);
         free(curr);
     }
 }
@@ -88,9 +76,9 @@ void free_process_list() {
 void update_process_list() {
     process_t *curr = process_list;
 
-    while (curr != NULL) {
+    while (curr) {
         int status;
-        pid_t returned_val = waitpid(curr->pid, &status, WNOHANG); // waitpid(2) - linux man page
+        pid_t returned_val = waitpid(curr->pid, &status, WNOHANG);
 
         if (returned_val > 0) {
             if (WIFSTOPPED(status)) {
@@ -101,10 +89,12 @@ void update_process_list() {
                 update_process_status(curr->pid, TERMINATED);
             }
 
-        } else if (returned_val == -1) { // process not found -> considered 'terminated'
+        }
+
+        else if (returned_val == -1) {
+            // If process is completely gone (ECHILD), mark as terminated
             update_process_status(curr->pid, TERMINATED);
         }
-        // else - returned_val == 0, process still running, hasn't changed state
 
         curr = curr->next;
     }
@@ -126,27 +116,32 @@ int process_signal(const char *signal_name, pid_t pid) {
 
     if (strcmp(signal_name, "halt") == 0) {
         if (kill(pid, SIGTSTP) == 0) {
-            printf("Process %d successfully stopped\n", pid);
+            printf("[INFO] Jobs: process %d suspended (SIGTSTP).\n", pid);
             update_process_status(pid, SUSPENDED);
         } else {
+            fprintf(stderr, "[ERROR] Jobs: failed to halt PID %d - %s\n", pid, strerror(errno));
             return -1;
         }
     } else if (strcmp(signal_name, "wakeup") == 0) {
         if (kill(pid, SIGCONT) == 0) {
-            printf("Process %d successfully continued\n", pid);
+            printf("[INFO] Jobs: process %d resumed (SIGCONT).\n", pid);
             update_process_status(pid, RUNNING);
         } else {
+            fprintf(stderr, "[ERROR] Jobs: failed to wakeup PID %d - %s\n", pid, strerror(errno));
             return -1;
         }
     } else if (strcmp(signal_name, "ice") == 0) {
         if (kill(pid, SIGINT) == 0) {
-            printf("Process %d successfully terminated\n", pid);
+            printf("[INFO] Jobs: process %d terminated (SIGINT).\n", pid);
             update_process_status(pid, TERMINATED);
         } else {
+            fprintf(stderr, "[ERROR] Jobs: failed to ice PID %d - %s\n", pid, strerror(errno));
             return -1;
         }
-    } else {
-        fprintf(stderr, "ERROR - the signal %s is not supported in this program\n", signal_name);
+    }
+
+    else {
+        fprintf(stderr, "[ERROR] Jobs: unsupported signal '%s'.\n", signal_name);
         return -1;
     }
 

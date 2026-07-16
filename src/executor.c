@@ -285,6 +285,15 @@ static void exec_background(node_background_t *bg) {
     if (debug_mode) {
         printf("[Started background job, PID: %d]\n", pid);
     }
+
+    // Register the job
+    const char *cmd_name = "unknown_job";
+
+    if (bg->child->type == NODE_COMMAND && bg->child->data.command.argv[0]) {
+        cmd_name = bg->child->data.command.argv[0];
+    }
+
+    add_process(cmd_name, pid);
 }
 
 static void exec_pipe(node_pipe_t *pipe_node) {

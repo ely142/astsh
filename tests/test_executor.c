@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "executor.h"
+#include "jobs.h"
 #include "lexer.h"
 #include "parser.h"
 
@@ -104,6 +105,7 @@ void test_complex_background_pipeline() {
     assert_file_content("test_out.txt", "error: system crash\n");
     unlink("test_in.txt");
 
+    free_process_list();
     parser_free_ast(root);
     lexer_free_tokens(tokens);
     TEST_PASS("test_complex_background_pipeline");

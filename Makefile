@@ -21,33 +21,6 @@ LOOPER_OBJS = $(OBJ_DIR)/looper.o
 
 all: $(TARGETS) 
 
-test_lexer: src/lexer.c tests/test_lexer.c
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -o $(OBJ_DIR)/test_lexer src/lexer.c tests/test_lexer.c
-	./$(OBJ_DIR)/test_lexer
-
-test_parser: src/lexer.c src/parser.c tests/test_parser.c
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -o $(OBJ_DIR)/test_parser src/lexer.c src/parser.c tests/test_parser.c
-	./$(OBJ_DIR)/test_parser
-
-test_executor: src/lexer.c src/parser.c src/executor.c tests/test_executor.c
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -o $(OBJ_DIR)/test_executor src/lexer.c src/parser.c src/executor.c tests/test_executor.c
-	./$(OBJ_DIR)/test_executor
-	
-valgrind_lexer: test_lexer
-	$(VALGRIND) ./$(OBJ_DIR)/test_lexer
-
-valgrind_parser: test_parser
-	$(VALGRIND) ./$(OBJ_DIR)/test_parser
-
-valgrind_executor: test_executor
-	$(VALGRIND) ./$(OBJ_DIR)/test_executor
-
-shell_valgrind: $(OBJ_DIR)/shell
-	$(VALGRIND) ./$(OBJ_DIR)/shell
-	
 $(OBJ_DIR)/shell: $(SHELL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
@@ -58,7 +31,40 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: clean
+$(OBJ_DIR)/test_lexer: $(SRC_DIR)/lexer.c tests/test_lexer.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(OBJ_DIR)/test_parser: $(SRC_DIR)/lexer.c $(SRC_DIR)/parser.c tests/test_parser.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(OBJ_DIR)/test_executor: $(SRC_DIR)/lexer.c $(SRC_DIR)/parser.c $(SRC_DIR)/executor.c $(SRC_DIR)/jobs.c tests/test_executor.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+test_lexer: $(OBJ_DIR)/test_lexer
+	./$<
+
+test_parser: $(OBJ_DIR)/test_parser
+	./$<
+
+test_executor: $(OBJ_DIR)/test_executor
+	./$<
+    
+valgrind_lexer: $(OBJ_DIR)/test_lexer
+	$(VALGRIND) ./$<
+
+valgrind_parser: $(OBJ_DIR)/test_parser
+	$(VALGRIND) ./$<
+
+valgrind_executor: $(OBJ_DIR)/test_executor
+	$(VALGRIND) ./$<
+
+valgrind_shell: $(OBJ_DIR)/shell
+	$(VALGRIND) ./$<
+    
+.PHONY: all clean test_lexer test_parser test_executor valgrind_lexer valgrind_parser valgrind_executor valgrind_shell
 
 clean:
 	rm -rf $(OBJ_DIR)/

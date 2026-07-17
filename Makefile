@@ -11,7 +11,6 @@ VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes
 TARGETS = $(OBJ_DIR)/shell $(OBJ_DIR)/looper
 
 SHELL_OBJS = $(OBJ_DIR)/main.o \
-             $(OBJ_DIR)/line_parser.o \
              $(OBJ_DIR)/history.o \
              $(OBJ_DIR)/jobs.o \
              $(OBJ_DIR)/executor.o \

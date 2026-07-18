@@ -3,7 +3,7 @@
 
 #include "parser.h"
 
-int builtin_is_command(const char *cmd);
-int builtin_execute(ast_node_t *ast);
+int builtins_is_command(const char *cmd);
+int builtins_execute(ast_node_t *ast);
 
 #endif

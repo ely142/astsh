@@ -123,66 +123,10 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        // 3. TRANSITIONAL BUILT-INS (To be moved to Executor)
-
-        if (ast->type == NODE_COMMAND) {
-            char **argv = ast->data.command.argv;
-
-            // Helper: calculate argc for the current command node
-            int arg_count = 0;
-            while (argv[arg_count] != NULL) {
-                arg_count++;
-            }
-
-            if (strcmp(argv[0], "cd") == 0) {
-                if (arg_count != 2) {
-                    fprintf(stderr, "[ERROR] Built-in: 'cd' requires exactly one argument.\n");
-                }
-
-                else if (chdir(argv[1]) == -1) {
-                    // Descriptive error utilizing perror for system-level details
-                    perror("[ERROR] Built-in: chdir() failed");
-                }
-
-                parser_free_ast(ast);
-                continue;
-            }
-
-            else if (strcmp(argv[0], "procs") == 0) {
-                print_process_list();
-                parser_free_ast(ast);
-                continue;
-            }
-
-            else if ((strcmp(argv[0], "halt") == 0) || (strcmp(argv[0], "wakeup") == 0) ||
-                     (strcmp(argv[0], "ice") == 0)) {
-
-                if (arg_count != 2) {
-                    fprintf(stderr, "[ERROR] Built-in: '%s' requires a valid PID argument.\n", argv[0]);
-                }
-
-                else {
-                    int pid_to_signal = atoi(argv[1]);
-
-                    // atoi returns 0 on failure, PID 0 is a system process we shouldn't signal anyway
-                    if (pid_to_signal <= 0) {
-                        fprintf(stderr, "[ERROR] Built-in: invalid PID '%s' provided to '%s'.\n", argv[1], argv[0]);
-                    }
-
-                    else if (process_signal(argv[0], pid_to_signal) == -1) {
-                        fprintf(stderr, "[ERROR] Built-in: failed to send '%s' signal to PID %d.\n", argv[0],
-                                pid_to_signal);
-                    }
-                }
-                parser_free_ast(ast);
-                continue;
-            }
-        }
-
-        // 4. EXECUTION
+        // 3. EXECUTION
         executor_run_ast(ast);
 
-        // 5. CLEANUP
+        // 4. CLEANUP
         parser_free_ast(ast); // Contract: parent process always cleans up the AST
     }
 

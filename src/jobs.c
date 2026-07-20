@@ -7,7 +7,7 @@
 
 #include "jobs.h"
 
-static process_t *process_list = NULL;
+process_t *process_list = NULL;
 
 void add_process(const char *cmd_name, pid_t pid) {
     process_t *new_proc = (process_t *)malloc(sizeof(process_t));

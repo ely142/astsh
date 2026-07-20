@@ -13,6 +13,7 @@ TARGETS = $(OBJ_DIR)/shell $(OBJ_DIR)/looper
 SHELL_OBJS = $(OBJ_DIR)/main.o \
              $(OBJ_DIR)/history.o \
              $(OBJ_DIR)/jobs.o \
+			 $(OBJ_DIR)/builtins.o \
              $(OBJ_DIR)/executor.o \
 			 $(OBJ_DIR)/lexer.o \
 			 $(OBJ_DIR)/parser.o
@@ -39,7 +40,7 @@ $(OBJ_DIR)/test_parser: $(SRC_DIR)/lexer.c $(SRC_DIR)/parser.c tests/test_parser
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(OBJ_DIR)/test_executor: $(SRC_DIR)/lexer.c $(SRC_DIR)/parser.c $(SRC_DIR)/executor.c $(SRC_DIR)/jobs.c tests/test_executor.c
+$(OBJ_DIR)/test_executor: $(SRC_DIR)/lexer.c $(SRC_DIR)/parser.c $(SRC_DIR)/executor.c $(SRC_DIR)/jobs.c $(SRC_DIR)/builtins.c tests/test_executor.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 

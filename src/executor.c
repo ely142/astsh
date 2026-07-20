@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "builtins.h"
 #include "executor.h"
 #include "jobs.h"
 
@@ -19,6 +20,17 @@ void executor_run_ast(ast_node_t *node) {
     if (!node)
         return;
 
+    // Intercept built-ins in the parent process
+    if (node->type == NODE_COMMAND) {
+        char **argv = node->data.command.argv;
+
+        if (argv && argv[0] && builtins_is_command(argv[0])) {
+            builtins_execute(node);
+            return;
+        }
+    }
+
+    // Standard execution pipeline (external binaries)
     switch (node->type) {
         // Foreground tasks: fork once to protect the parent shell
         case NODE_COMMAND:

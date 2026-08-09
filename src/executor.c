@@ -18,17 +18,24 @@ extern int debug_mode;
 static void execute_process(ast_node_t *node);
 static void exec_background(node_background_t *bg);
 static void exec_pipe(node_pipe_t *pipe_node);
+static void execute_parent_builtin(ast_node_t *root, ast_node_t *core_cmd);
 
 void executor_run_ast(ast_node_t *node) {
     if (!node)
         return;
 
+    // AST Lookahead: peel back redirection nodes to locate the base command
+    ast_node_t *core_cmd = node;
+    while (core_cmd && core_cmd->type == NODE_REDIRECT) {
+        core_cmd = core_cmd->data.redirect.child;
+    }
+
     // Intercept built-ins in the parent process
-    if (node->type == NODE_COMMAND) {
-        char **argv = node->data.command.argv;
+    if (core_cmd && core_cmd->type == NODE_COMMAND) {
+        char **argv = core_cmd->data.command.argv;
 
         if (argv && argv[0] && builtins_is_command(argv[0])) {
-            builtins_execute(node);
+            execute_parent_builtin(node, core_cmd);
             return;
         }
     }
@@ -239,4 +246,46 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     if (waitpid(right_pid, NULL, 0) == -1) {
         fprintf(stderr, "[ERROR] waitpid(right) failed for Child PID %d: %s\n", right_pid, strerror(errno));
     }
+}
+
+static void execute_parent_builtin(ast_node_t *root, ast_node_t *core_cmd) {
+    int saved_in = dup(STDIN_FILENO);
+    int saved_out = dup(STDOUT_FILENO);
+    int saved_err = dup(STDERR_FILENO);
+
+    if (saved_in < 0 || saved_out < 0 || saved_err < 0) {
+        fprintf(stderr, "[ERROR] failed to backup file descriptors.\n");
+        return;
+    }
+
+    ast_node_t *curr = root;
+    while (curr && curr->type == NODE_REDIRECT) {
+        node_redirect_t *redir = &curr->data.redirect;
+
+        int fd = open(redir->file, redir->open_flags, 0644);
+        if (fd < 0) {
+            fprintf(stderr, "[ERROR] open failed for %s: %s\n", redir->file, strerror(errno));
+            goto restore_fds;
+        }
+
+        if (dup2(fd, redir->target_fd) == -1) {
+            fprintf(stderr, "[ERROR] dup2 failure: %s\n", strerror(errno));
+            close(fd);
+            goto restore_fds;
+        }
+        close(fd);
+
+        curr = redir->child;
+    }
+
+    builtins_execute(core_cmd);
+
+restore_fds:
+    dup2(saved_in, STDIN_FILENO);
+    dup2(saved_out, STDOUT_FILENO);
+    dup2(saved_err, STDERR_FILENO);
+
+    close(saved_in);
+    close(saved_out);
+    close(saved_err);
 }

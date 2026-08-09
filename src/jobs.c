@@ -79,10 +79,19 @@ void print_process_list() {
 }
 
 void free_process_list() {
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, NULL);
 
     while (process_list) {
         process_t *curr = process_list;
         process_list = process_list->next;
+
+        if (curr->status != TERMINATED) {
+            kill(curr->pid, SIGTERM);
+            kill(curr->pid, SIGCONT); // Wake-and-kill for suspended processes
+        }
 
         free(curr->cmd_name);
         free(curr);

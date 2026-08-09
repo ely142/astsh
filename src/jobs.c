@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -9,7 +11,25 @@
 
 process_t *process_list = NULL;
 
-void add_process(const char *cmd_name, pid_t pid) {
+static void update_process_status(int pid, int status) {
+    process_t *curr = process_list;
+
+    while (curr != NULL) {
+        if (curr->pid == pid) {
+            curr->status = status;
+            break;
+        }
+        curr = curr->next;
+    }
+}
+
+void jobs_add_process(const char *cmd_name, pid_t pid) {
+    // Block SIGCHLD to prevent list traversal race conditions
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
     process_t *new_proc = (process_t *)malloc(sizeof(process_t));
 
     if (!new_proc) {
@@ -23,10 +43,16 @@ void add_process(const char *cmd_name, pid_t pid) {
     new_proc->status = RUNNING; // Default state
     new_proc->next = process_list;
     process_list = new_proc;
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
-void print_process_list() {
-    update_process_list();
+void jobs_print() {
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
     process_t *curr = process_list;
     process_t *prev = NULL;
 
@@ -60,64 +86,58 @@ void print_process_list() {
             curr = curr->next;
         }
     }
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
-void free_process_list() {
+void jobs_free() {
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
 
     while (process_list) {
         process_t *curr = process_list;
         process_list = process_list->next;
 
+        if (curr->status != TERMINATED) {
+            kill(curr->pid, SIGTERM);
+            kill(curr->pid, SIGCONT); // Wake-and-kill for suspended processes
+        }
+
         free(curr->cmd_name);
         free(curr);
     }
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
-void update_process_list() {
-    process_t *curr = process_list;
+void jobs_sigchld_handler(int sig) {
+    // Silence compiler warnings for mandatory POSIX signature parameters
+    (void)sig;
 
-    while (curr) {
-        int status;
-        pid_t returned_val = waitpid(curr->pid, &status, WNOHANG);
+    int saved_errno = errno;
+    int status;
+    pid_t pid;
 
-        if (returned_val > 0) {
-            if (WIFSTOPPED(status)) {
-                update_process_status(curr->pid, SUSPENDED);
-            } else if (WIFCONTINUED(status)) {
-                update_process_status(curr->pid, RUNNING);
-            } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                update_process_status(curr->pid, TERMINATED);
-            }
-
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0) {
+        if (WIFSTOPPED(status)) {
+            update_process_status(pid, SUSPENDED);
+        } else if (WIFCONTINUED(status)) {
+            update_process_status(pid, RUNNING);
+        } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
+            update_process_status(pid, TERMINATED);
         }
-
-        else if (returned_val == -1) {
-            // If process is completely gone (ECHILD), mark as terminated
-            update_process_status(curr->pid, TERMINATED);
-        }
-
-        curr = curr->next;
     }
+
+    errno = saved_errno;
 }
 
-void update_process_status(int pid, int status) {
-    process_t *curr = process_list;
-
-    while (curr != NULL) {
-        if (curr->pid == pid) {
-            curr->status = status;
-            break;
-        }
-        curr = curr->next;
-    }
-}
-
-int process_signal(const char *signal_name, pid_t pid) {
+int jobs_execute_signal(const char *signal_name, pid_t pid) {
 
     if (strcmp(signal_name, "halt") == 0) {
         if (kill(pid, SIGTSTP) == 0) {
             printf("[INFO] Jobs: process %d suspended (SIGTSTP).\n", pid);
-            update_process_status(pid, SUSPENDED);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to halt PID %d - %s\n", pid, strerror(errno));
             return -1;
@@ -125,15 +145,14 @@ int process_signal(const char *signal_name, pid_t pid) {
     } else if (strcmp(signal_name, "wakeup") == 0) {
         if (kill(pid, SIGCONT) == 0) {
             printf("[INFO] Jobs: process %d resumed (SIGCONT).\n", pid);
-            update_process_status(pid, RUNNING);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to wakeup PID %d - %s\n", pid, strerror(errno));
             return -1;
         }
     } else if (strcmp(signal_name, "ice") == 0) {
-        if (kill(pid, SIGINT) == 0) {
-            printf("[INFO] Jobs: process %d terminated (SIGINT).\n", pid);
-            update_process_status(pid, TERMINATED);
+        if (kill(pid, SIGTERM) == 0) {
+            kill(pid, SIGCONT);
+            printf("[INFO] Jobs: process %d terminated (SIGTERM).\n", pid);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to ice PID %d - %s\n", pid, strerror(errno));
             return -1;

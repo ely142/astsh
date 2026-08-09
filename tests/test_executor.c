@@ -1,5 +1,8 @@
+#define _GNU_SOURCE
+
 #include <assert.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -107,7 +110,7 @@ void test_complex_background_pipeline() {
     assert_file_content("test_out.txt", "error: system crash\n");
     unlink("test_in.txt");
 
-    free_process_list();
+    jobs_free();
     parser_free_ast(root);
     lexer_free_tokens(tokens);
     TEST_PASS("test_complex_background_pipeline");
@@ -171,7 +174,7 @@ void test_builtin_procs() {
     lexer_free_tokens(procs_tokens);
     parser_free_ast(bg_root);
     lexer_free_tokens(bg_tokens);
-    free_process_list();
+    jobs_free();
 
     assert(bytes_read > 0 && "Output file is entirely empty.");
     assert(strstr(buffer, "sleep") && "procs output did not contain the 'sleep' job.");
@@ -254,7 +257,7 @@ void test_builtin_signals() {
     parser_free_ast(bg_root);
     lexer_free_tokens(bg_tokens);
 
-    free_process_list();
+    jobs_free();
 
     assert(is_running_initially && "Background job failed to start as Running.");
     assert(is_suspended && "halt built-in failed to transition job to Suspended.");
@@ -265,6 +268,16 @@ void test_builtin_signals() {
 }
 
 int main() {
+    struct sigaction sa;
+    sa.sa_handler = jobs_sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        fprintf(stderr, "[ERROR] Test Suite: failed to bind SIGCHLD handler.\n");
+        return 1;
+    }
+
     printf("==========================\n");
     printf("  RUNNING EXECUTOR TESTS  \n");
     printf("==========================\n");

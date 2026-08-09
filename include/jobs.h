@@ -14,11 +14,10 @@ typedef struct process {
     struct process *next;
 } process_t;
 
-void add_process(const char *cmd_name, pid_t pid);
-void print_process_list();
-void free_process_list();
-void update_process_list();
-void update_process_status(int pid, int status);
-int process_signal(const char *signal_name, pid_t pid);
+void jobs_add_process(const char *cmd_name, pid_t pid);
+void jobs_print();
+void jobs_free();
+void jobs_sigchld_handler(int sig);
+int jobs_execute_signal(const char *signal_name, pid_t pid);
 
 #endif

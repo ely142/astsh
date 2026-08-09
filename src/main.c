@@ -1,4 +1,7 @@
+#define _GNU_SOURCE
+
 #include <linux/limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,12 +23,26 @@ int debug_mode = 0;
 void prompt();
 
 int main(int argc, char **argv) {
+
+    signal(SIGINT, SIG_IGN);
+
     char buffer[BUFFER_SIZE];
 
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "-d") == 0) {
             debug_mode = 1;
         }
+    }
+
+    // Register asynchronous child reaping
+    struct sigaction sa;
+    sa.sa_handler = jobs_sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        fprintf(stderr, "[ERROR] shell: failed to bind SIGCHLD handler.\n");
+        exit(EXIT_FAILURE);
     }
 
     while (1) {
@@ -130,7 +147,7 @@ int main(int argc, char **argv) {
         parser_free_ast(ast); // Contract: parent process always cleans up the AST
     }
 
-    free_process_list();
+    jobs_free();
     free_history();
     return 0;
 }

@@ -1,5 +1,8 @@
+#define _GNU_SOURCE
+
 #include <assert.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -265,6 +268,16 @@ void test_builtin_signals() {
 }
 
 int main() {
+    struct sigaction sa;
+    sa.sa_handler = jobs_sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        fprintf(stderr, "[ERROR] Test Suite: failed to bind SIGCHLD handler.\n");
+        return 1;
+    }
+
     printf("==========================\n");
     printf("  RUNNING EXECUTOR TESTS  \n");
     printf("==========================\n");

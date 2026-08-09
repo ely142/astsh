@@ -91,10 +91,10 @@ void jobs_print() {
 }
 
 void jobs_free() {
-    sigset_t mask;
+    sigset_t mask, prev_mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask, NULL);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
 
     while (process_list) {
         process_t *curr = process_list;
@@ -108,6 +108,8 @@ void jobs_free() {
         free(curr->cmd_name);
         free(curr);
     }
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
 void jobs_sigchld_handler(int sig) {

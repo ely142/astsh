@@ -75,20 +75,19 @@ int main(int argc, char **argv) {
         // 1. RAW STRING INTERCEPTION (History Expansion)
 
         if (strcmp(buffer, "hist") == 0) {
-            add_to_history(buffer);
-            print_history();
+            history_print();
             continue;
         }
 
         else if (strcmp(buffer, "!!") == 0) {
-            int history_size = get_history_size();
+            int history_size = history_get_size();
 
             if (history_size == 0) {
                 fprintf(stderr, " [ERROR] History: no commands in history to execute.\n");
                 continue;
             }
 
-            const char *command = get_history_command(history_size);
+            const char *command = history_get(history_size);
 
             if (!command) {
                 continue;
@@ -101,14 +100,14 @@ int main(int argc, char **argv) {
 
         else if (buffer[0] == '!' && buffer[1] != '\0') {
             int n = atoi(buffer + 1);
-            int history_size = get_history_size();
+            int history_size = history_get_size();
 
             if (n < 1 || n > history_size) {
                 fprintf(stderr, "[ERROR] History: index '%d' is out of bounds (1 to %d).\n", n, history_size);
                 continue;
             }
 
-            const char *command = get_history_command(n);
+            const char *command = history_get(n);
 
             if (!command) {
                 continue;
@@ -121,7 +120,7 @@ int main(int argc, char **argv) {
         }
 
         // Contract: only valid, expanded commands reach this point, record them
-        add_to_history(buffer);
+        history_add(buffer);
 
         // 2. ORCHESTRATION: Lexer -> Parser
 
@@ -148,7 +147,7 @@ int main(int argc, char **argv) {
     }
 
     jobs_free();
-    free_history();
+    history_free();
     return 0;
 }
 

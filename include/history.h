@@ -8,10 +8,10 @@ typedef struct history_link {
     struct history_link *next;
 } history_link_t;
 
-void add_to_history(const char *command);
-const char *get_history_command(int index);
-void print_history();
-void free_history();
-int get_history_size();
+void history_add(const char *command);
+const char *history_get(int index);
+void history_print();
+void history_free();
+int history_get_size();
 
 #endif

@@ -167,7 +167,7 @@ static void exec_background(node_background_t *bg) {
         cmd_name = bg->child->data.command.argv[0];
     }
 
-    add_process(cmd_name, pid);
+    jobs_add_process(cmd_name, pid);
 }
 
 static void exec_pipe(node_pipe_t *pipe_node) {

@@ -11,7 +11,19 @@
 
 process_t *process_list = NULL;
 
-void add_process(const char *cmd_name, pid_t pid) {
+static void update_process_status(int pid, int status) {
+    process_t *curr = process_list;
+
+    while (curr != NULL) {
+        if (curr->pid == pid) {
+            curr->status = status;
+            break;
+        }
+        curr = curr->next;
+    }
+}
+
+void jobs_add_process(const char *cmd_name, pid_t pid) {
     // Block SIGCHLD to prevent list traversal race conditions
     sigset_t mask, prev_mask;
     sigemptyset(&mask);
@@ -35,7 +47,7 @@ void add_process(const char *cmd_name, pid_t pid) {
     sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
-void print_process_list() {
+void jobs_print() {
     sigset_t mask, prev_mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
@@ -78,7 +90,7 @@ void print_process_list() {
     sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
-void free_process_list() {
+void jobs_free() {
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
@@ -119,19 +131,7 @@ void jobs_sigchld_handler(int sig) {
     errno = saved_errno;
 }
 
-void update_process_status(int pid, int status) {
-    process_t *curr = process_list;
-
-    while (curr != NULL) {
-        if (curr->pid == pid) {
-            curr->status = status;
-            break;
-        }
-        curr = curr->next;
-    }
-}
-
-int process_signal(const char *signal_name, pid_t pid) {
+int jobs_execute_signal(const char *signal_name, pid_t pid) {
 
     if (strcmp(signal_name, "halt") == 0) {
         if (kill(pid, SIGTSTP) == 0) {

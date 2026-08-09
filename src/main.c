@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
         parser_free_ast(ast); // Contract: parent process always cleans up the AST
     }
 
-    free_process_list();
+    jobs_free();
     free_history();
     return 0;
 }

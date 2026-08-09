@@ -107,7 +107,7 @@ void test_complex_background_pipeline() {
     assert_file_content("test_out.txt", "error: system crash\n");
     unlink("test_in.txt");
 
-    free_process_list();
+    jobs_free();
     parser_free_ast(root);
     lexer_free_tokens(tokens);
     TEST_PASS("test_complex_background_pipeline");
@@ -171,7 +171,7 @@ void test_builtin_procs() {
     lexer_free_tokens(procs_tokens);
     parser_free_ast(bg_root);
     lexer_free_tokens(bg_tokens);
-    free_process_list();
+    jobs_free();
 
     assert(bytes_read > 0 && "Output file is entirely empty.");
     assert(strstr(buffer, "sleep") && "procs output did not contain the 'sleep' job.");
@@ -254,7 +254,7 @@ void test_builtin_signals() {
     parser_free_ast(bg_root);
     lexer_free_tokens(bg_tokens);
 
-    free_process_list();
+    jobs_free();
 
     assert(is_running_initially && "Background job failed to start as Running.");
     assert(is_suspended && "halt built-in failed to transition job to Suspended.");

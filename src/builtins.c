@@ -48,7 +48,7 @@ int builtins_execute(ast_node_t *ast) {
     }
 
     if (strcmp(argv[0], "procs") == 0) {
-        print_process_list();
+        jobs_print();
         return 0;
     }
 
@@ -67,7 +67,7 @@ int builtins_execute(ast_node_t *ast) {
             return -1;
         }
 
-        if (process_signal(argv[0], pid_to_signal) == -1) {
+        if (jobs_execute_signal(argv[0], pid_to_signal) == -1) {
             fprintf(stderr, "[ERROR] Built-in: failed to send '%s' signal to PID %d.\n", argv[0], pid_to_signal);
             return -1;
         }

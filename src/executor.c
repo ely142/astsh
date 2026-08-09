@@ -133,11 +133,17 @@ static void exec_background(node_background_t *bg) {
     }
 
     if (pid == 0) {
-        execute_process(bg->child);
+        if (setpgid(0, 0) < 0) {
+            fprintf(stderr, "shell: failed to set background process group: %s\n", strerror(errno));
+            _exit(EXIT_FAILURE);
+        }
 
-        // Prevent the child from returning up the call stack and cloning the shell
+        execute_process(bg->child);
         _exit(EXIT_SUCCESS);
     }
+
+    // Defend against race conditions
+    setpgid(pid, pid);
 
     if (debug_mode) {
         printf("[Started background job, PID: %d]\n", pid);

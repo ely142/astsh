@@ -75,7 +75,6 @@ int main(int argc, char **argv) {
         // 1. RAW STRING INTERCEPTION (History Expansion)
 
         if (strcmp(buffer, "hist") == 0) {
-            history_add(buffer);
             history_print();
             continue;
         }

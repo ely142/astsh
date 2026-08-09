@@ -9,6 +9,10 @@ static history_link_t *history_head;
 static history_link_t *history_tail;
 
 void history_add(const char *command) {
+    if (strcmp(command, "hist") == 0 || command[0] == '!') {
+        return;
+    }
+
     if (history_tail != NULL && (strcmp(history_tail->command, command) == 0)) {
         return;
     }
@@ -17,10 +21,16 @@ void history_add(const char *command) {
 
     if (new_record == NULL) {
         fprintf(stderr, "ERROR - failed to allocate memory for new command record in history\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     new_record->command = strdup(command);
+    if (new_record->command == NULL) {
+        fprintf(stderr, "[ERROR] history: memory allocation failed for command string\n");
+        free(new_record);
+        exit(EXIT_FAILURE);
+    }
+
     new_record->next = NULL;
 
     if (history_size == 0) {
@@ -36,9 +46,7 @@ void history_add(const char *command) {
             history_head = history_head->next;
             free(temp->command);
             free(temp);
-        }
-
-        else {
+        } else {
             history_size++;
         }
     }
@@ -67,43 +75,26 @@ void history_free() {
     history_head = NULL;
 }
 
-const char *history_get(int index) { //!! - history_size, !n - n
-    if (index == history_size) {
-        if (strcmp(history_tail->command, "hist") != 0) {
-            return history_tail->command;
-        } else {
-            history_link_t *curr = history_head;
-            history_link_t *last_not_history = NULL;
-
-            while (curr != NULL) {
-                if (strcmp(curr->command, "hist") != 0) {
-                    last_not_history = curr;
-                }
-                curr = curr->next;
-            }
-
-            if (last_not_history != NULL) {
-                return last_not_history->command;
-            } else {
-                fprintf(stderr, "ERROR - failed to find a valid history command\n");
-                return NULL;
-            }
-        }
+const char *history_get(int index) {
+    if (history_size == 0) {
+        fprintf(stderr, "[ERROR] history: no commands in history\n");
+        return NULL;
     }
 
-    else { // Index somewhere between 1 to 20
-        history_link_t *curr = history_head;
-        for (int i = 1; i < index && curr != NULL; i++) {
-            curr = curr->next;
-        }
-
-        if (curr != NULL && strcmp(curr->command, "hist") != 0) {
-            return curr->command;
-        } else {
-            fprintf(stderr, "ERROR - not a valid command in history\n");
-            return NULL;
-        }
+    if (index < 1 || index > history_size) {
+        fprintf(stderr, "[ERROR] history: event not found\n");
+        return NULL;
     }
+
+    history_link_t *curr = history_head;
+    for (int i = 1; i < index && curr != NULL; i++) {
+        curr = curr->next;
+    }
+
+    if (curr != NULL) {
+        return curr->command;
+    }
+
     return NULL;
 }
 

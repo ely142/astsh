@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -36,18 +38,27 @@ void executor_run_ast(ast_node_t *node) {
         // Foreground tasks: fork once to protect the parent shell
         case NODE_COMMAND:
         case NODE_REDIRECT: {
+            // Block SIGCHLD so the handler doesn't steal the foreground exit status
+            sigset_t mask, prev_mask;
+            sigemptyset(&mask);
+            sigaddset(&mask, SIGCHLD);
+            sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
             pid_t pid = fork();
 
             if (pid < 0) {
                 fprintf(stderr, "[ERROR] foreground fork failed: %s.\n", strerror(errno));
+                sigprocmask(SIG_SETMASK, &prev_mask, NULL);
                 return;
             }
 
             if (pid == 0) {
+                sigprocmask(SIG_SETMASK, &prev_mask, NULL);
                 execute_process(node);
             }
 
             waitpid(pid, NULL, 0);
+            sigprocmask(SIG_SETMASK, &prev_mask, NULL);
             break;
         }
 

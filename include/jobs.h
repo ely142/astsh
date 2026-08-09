@@ -17,7 +17,7 @@ typedef struct process {
 void add_process(const char *cmd_name, pid_t pid);
 void print_process_list();
 void free_process_list();
-void update_process_list();
+void jobs_sigchld_handler(int sig);
 void update_process_status(int pid, int status);
 int process_signal(const char *signal_name, pid_t pid);
 

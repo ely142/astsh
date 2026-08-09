@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -10,6 +12,12 @@
 process_t *process_list = NULL;
 
 void add_process(const char *cmd_name, pid_t pid) {
+    // Block SIGCHLD to prevent list traversal race conditions
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
     process_t *new_proc = (process_t *)malloc(sizeof(process_t));
 
     if (!new_proc) {
@@ -23,10 +31,16 @@ void add_process(const char *cmd_name, pid_t pid) {
     new_proc->status = RUNNING; // Default state
     new_proc->next = process_list;
     process_list = new_proc;
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
 void print_process_list() {
-    update_process_list();
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
     process_t *curr = process_list;
     process_t *prev = NULL;
 
@@ -60,6 +74,8 @@ void print_process_list() {
             curr = curr->next;
         }
     }
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
 void free_process_list() {
@@ -73,31 +89,25 @@ void free_process_list() {
     }
 }
 
-void update_process_list() {
-    process_t *curr = process_list;
+void jobs_sigchld_handler(int sig) {
+    // Silence compiler warnings for mandatory POSIX signature parameters
+    (void)sig;
 
-    while (curr) {
-        int status;
-        pid_t returned_val = waitpid(curr->pid, &status, WNOHANG);
+    int saved_errno = errno;
+    int status;
+    pid_t pid;
 
-        if (returned_val > 0) {
-            if (WIFSTOPPED(status)) {
-                update_process_status(curr->pid, SUSPENDED);
-            } else if (WIFCONTINUED(status)) {
-                update_process_status(curr->pid, RUNNING);
-            } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                update_process_status(curr->pid, TERMINATED);
-            }
-
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0) {
+        if (WIFSTOPPED(status)) {
+            update_process_status(pid, SUSPENDED);
+        } else if (WIFCONTINUED(status)) {
+            update_process_status(pid, RUNNING);
+        } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
+            update_process_status(pid, TERMINATED);
         }
-
-        else if (returned_val == -1) {
-            // If process is completely gone (ECHILD), mark as terminated
-            update_process_status(curr->pid, TERMINATED);
-        }
-
-        curr = curr->next;
     }
+
+    errno = saved_errno;
 }
 
 void update_process_status(int pid, int status) {

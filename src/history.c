@@ -4,15 +4,12 @@
 
 #include "history.h"
 
-int history_size = 0;
-history_link_t *history_head;
-history_link_t *history_tail;
+static int history_size = 0;
+static history_link_t *history_head;
+static history_link_t *history_tail;
 
-// the oldest command is in the head, the most recent is at the end of the list
-void add_to_history(const char *command) {
-    if (history_tail != NULL &&
-        (strcmp(history_tail->command, command) == 0)) { // if the need to add command is the same as the most recent
-                                                         // one in the history list - no need to add it again
+void history_add(const char *command) {
+    if (history_tail != NULL && (strcmp(history_tail->command, command) == 0)) {
         return;
     }
 
@@ -26,11 +23,11 @@ void add_to_history(const char *command) {
     new_record->command = strdup(command);
     new_record->next = NULL;
 
-    if (history_size == 0) { // this is the first command in history
+    if (history_size == 0) {
         history_head = new_record;
         history_tail = new_record;
         history_size++;
-    } else { // otherwise
+    } else {
         history_tail->next = new_record;
         history_tail = new_record;
 
@@ -47,7 +44,7 @@ void add_to_history(const char *command) {
     }
 }
 
-void print_history() {
+void history_print() {
     history_link_t *curr = history_head;
     int index = 1;
 
@@ -58,7 +55,7 @@ void print_history() {
     }
 }
 
-void free_history() {
+void history_free() {
     while (history_head) {
         history_link_t *curr = history_head;
         history_head = history_head->next;
@@ -70,7 +67,7 @@ void free_history() {
     history_head = NULL;
 }
 
-const char *get_history_command(int index) { //!! - history_size, !n - n
+const char *history_get(int index) { //!! - history_size, !n - n
     if (index == history_size) {
         if (strcmp(history_tail->command, "hist") != 0) {
             return history_tail->command;
@@ -94,7 +91,7 @@ const char *get_history_command(int index) { //!! - history_size, !n - n
         }
     }
 
-    else { // index somewhere between 1 to 20
+    else { // Index somewhere between 1 to 20
         history_link_t *curr = history_head;
         for (int i = 1; i < index && curr != NULL; i++) {
             curr = curr->next;
@@ -110,6 +107,6 @@ const char *get_history_command(int index) { //!! - history_size, !n - n
     return NULL;
 }
 
-int get_history_size() {
+int history_get_size() {
     return history_size;
 }

@@ -136,7 +136,6 @@ int jobs_execute_signal(const char *signal_name, pid_t pid) {
     if (strcmp(signal_name, "halt") == 0) {
         if (kill(pid, SIGTSTP) == 0) {
             printf("[INFO] Jobs: process %d suspended (SIGTSTP).\n", pid);
-            update_process_status(pid, SUSPENDED);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to halt PID %d - %s\n", pid, strerror(errno));
             return -1;
@@ -144,18 +143,14 @@ int jobs_execute_signal(const char *signal_name, pid_t pid) {
     } else if (strcmp(signal_name, "wakeup") == 0) {
         if (kill(pid, SIGCONT) == 0) {
             printf("[INFO] Jobs: process %d resumed (SIGCONT).\n", pid);
-            update_process_status(pid, RUNNING);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to wakeup PID %d - %s\n", pid, strerror(errno));
             return -1;
         }
     } else if (strcmp(signal_name, "ice") == 0) {
         if (kill(pid, SIGTERM) == 0) {
-
             kill(pid, SIGCONT);
-
             printf("[INFO] Jobs: process %d terminated (SIGTERM).\n", pid);
-            update_process_status(pid, TERMINATED);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to ice PID %d - %s\n", pid, strerror(errno));
             return -1;

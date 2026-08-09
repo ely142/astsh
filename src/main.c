@@ -1,4 +1,5 @@
 #include <linux/limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +21,9 @@ int debug_mode = 0;
 void prompt();
 
 int main(int argc, char **argv) {
+
+    signal(SIGINT, SIG_IGN);
+
     char buffer[BUFFER_SIZE];
 
     for (int i = 0; i < argc; i++) {

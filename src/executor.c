@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +71,7 @@ static void execute_process(ast_node_t *node) {
                 char **argv = node->data.command.argv;
 
                 if (argv && argv[0]) {
+                    signal(SIGINT, SIG_DFL);
                     execvp(argv[0], argv);
                     fprintf(stderr, "[ERROR] %s: %s\n", argv[0], strerror(errno));
                 }

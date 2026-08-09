@@ -131,8 +131,11 @@ int process_signal(const char *signal_name, pid_t pid) {
             return -1;
         }
     } else if (strcmp(signal_name, "ice") == 0) {
-        if (kill(pid, SIGINT) == 0) {
-            printf("[INFO] Jobs: process %d terminated (SIGINT).\n", pid);
+        if (kill(pid, SIGTERM) == 0) {
+
+            kill(pid, SIGCONT);
+
+            printf("[INFO] Jobs: process %d terminated (SIGTERM).\n", pid);
             update_process_status(pid, TERMINATED);
         } else {
             fprintf(stderr, "[ERROR] Jobs: failed to ice PID %d - %s\n", pid, strerror(errno));

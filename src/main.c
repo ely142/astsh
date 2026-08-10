@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
 
+#include <errno.h>
 #include <linux/limits.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +21,13 @@
 #define BUFFER_SIZE 2048
 
 int debug_mode = 0;
+
+#define C_RESET  "\033[0m"
+#define C_ACCENT "\033[1;30m" // Bold Dark Gray
+#define C_USER   "\033[1;36m" // Bold Cyan
+#define C_HOST   "\033[1;34m" // Bold Blue
+#define C_PATH   "\033[1;33m" // Bold Yellow
+#define C_PROMPT "\033[1;32m" // Bold Green
 
 void prompt();
 
@@ -49,6 +58,11 @@ int main(int argc, char **argv) {
         prompt();
 
         if (!fgets(buffer, BUFFER_SIZE, stdin)) {
+            if (errno == EINTR) {
+                clearerr(stdin);
+                printf("\n");
+                continue;
+            }
             printf("\n");
             break; // Contract: EOF (Ctrl+D) triggers a graceful exit
         }
@@ -151,12 +165,46 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void prompt() {
-    char cwd_path[PATH_MAX];
+void prompt(void) {
+    char cwd[PATH_MAX];
+    char host[256];
 
-    if (!getcwd(cwd_path, PATH_MAX)) {
-        fprintf(stderr, "[ERROR] failed to get the current working directory.\n");
-    } else {
-        printf("%s #> ", cwd_path);
+    if (!getcwd(cwd, PATH_MAX)) {
+        strncpy(cwd, "unknown", PATH_MAX);
+        cwd[PATH_MAX - 1] = '\0';
     }
+
+    if (gethostname(host, sizeof(host)) != 0) {
+        strncpy(host, "local", sizeof(host));
+        host[sizeof(host) - 1] = '\0';
+    }
+
+    const char *user = getenv("USER");
+    if (!user) {
+        user = "user";
+    }
+
+    // Truncate home directory to '~' for visual brevity
+    const char *home = getenv("HOME");
+    size_t home_len = home ? strlen(home) : 0;
+    char display_cwd[PATH_MAX];
+
+    if (home && home_len > 0 && strncmp(cwd, home, home_len) == 0 && (cwd[home_len] == '/' || cwd[home_len] == '\0')) {
+        snprintf(display_cwd, sizeof(display_cwd), "~%s", cwd + home_len);
+    } else {
+        strncpy(display_cwd, cwd, PATH_MAX);
+        display_cwd[PATH_MAX - 1] = '\0';
+    }
+
+    // Context Dashboard
+    // Format: ╭─[user@host]─[~/current/path]
+    printf("%s╭─[%s%s%s@%s%s%s]%s─[%s%s%s]\n", C_ACCENT, C_USER, user, C_ACCENT, C_HOST, host, C_ACCENT, C_ACCENT,
+           C_PATH, display_cwd, C_ACCENT);
+
+    // Input Field
+    // Format: ╰─❯
+    printf("%s╰─%s❯%s ", C_ACCENT, C_PROMPT, C_RESET);
+
+    printf("\033]0;%s@%s: %s\007", user, host, display_cwd);
+    fflush(stdout);
 }

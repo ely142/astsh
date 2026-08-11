@@ -33,7 +33,7 @@ void jobs_add_process(const char *cmd_name, pid_t pid) {
     process_t *new_proc = (process_t *)malloc(sizeof(process_t));
 
     if (!new_proc) {
-        fprintf(stderr, "[ERROR] Jobs: memory allocation failed for new process.\n");
+        fprintf(stderr, "[ERROR] Jobs: memory allocation failed for new process\n");
         exit(1);
     }
 
@@ -160,7 +160,7 @@ int jobs_execute_signal(const char *signal_name, pid_t pid) {
     }
 
     else {
-        fprintf(stderr, "[ERROR] Jobs: unsupported signal '%s'.\n", signal_name);
+        fprintf(stderr, "[ERROR] Jobs: unsupported signal '%s'\n", signal_name);
         return -1;
     }
 

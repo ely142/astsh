@@ -54,7 +54,7 @@ void executor_run_ast(ast_node_t *node) {
             pid_t pid = fork();
 
             if (pid < 0) {
-                fprintf(stderr, "[ERROR] foreground fork failed: %s.\n", strerror(errno));
+                fprintf(stderr, "[ERROR] Executor: foreground fork failed - %s\n", strerror(errno));
                 sigprocmask(SIG_SETMASK, &prev_mask, NULL);
                 return;
             }
@@ -91,7 +91,7 @@ static void execute_process(ast_node_t *node) {
                 if (argv && argv[0]) {
                     signal(SIGINT, SIG_DFL);
                     execvp(argv[0], argv);
-                    fprintf(stderr, "[ERROR] %s: %s\n", argv[0], strerror(errno));
+                    fprintf(stderr, "[ERROR] Executor: %s - %s\n", argv[0], strerror(errno));
                 }
                 _exit(EXIT_FAILURE);
             }
@@ -100,19 +100,19 @@ static void execute_process(ast_node_t *node) {
                 node_redirect_t *redir = &node->data.redirect;
 
                 if (!redir || !redir->child || !redir->file) {
-                    fprintf(stderr, "[ERROR] invalid redirection node execution.\n");
+                    fprintf(stderr, "[ERROR] Executor: invalid redirection node execution\n");
                     _exit(EXIT_FAILURE);
                 }
 
                 int fd = open(redir->file, redir->open_flags, 0644);
 
                 if (fd < 0) {
-                    fprintf(stderr, "[ERROR] open failed for %s: %s\n", redir->file, strerror(errno));
+                    fprintf(stderr, "[ERROR] Executor: open failed for %s - %s\n", redir->file, strerror(errno));
                     _exit(EXIT_FAILURE);
                 }
 
                 if (dup2(fd, redir->target_fd) == -1) {
-                    fprintf(stderr, "[ERROR] dup2 failure: %s\n", strerror(errno));
+                    fprintf(stderr, "[ERROR] Executor: dup2 failure - %s\n", strerror(errno));
                     _exit(EXIT_FAILURE);
                 }
                 close(fd);
@@ -146,13 +146,13 @@ static void exec_background(node_background_t *bg) {
     pid_t pid = fork();
 
     if (pid < 0) {
-        fprintf(stderr, "[ERROR] [PARENT PID %d] process creation failed: %s.\n", getpid(), strerror(errno));
+        fprintf(stderr, "[ERROR] Executor: [PARENT PID %d] process creation failed - %s\n", getpid(), strerror(errno));
         return;
     }
 
     if (pid == 0) {
         if (setpgid(0, 0) < 0) {
-            fprintf(stderr, "shell: failed to set background process group: %s\n", strerror(errno));
+            fprintf(stderr, "[ERROR] Executor: failed to set background process group - %s\n", strerror(errno));
             _exit(EXIT_FAILURE);
         }
 
@@ -185,13 +185,13 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     int fd[2];
 
     if (pipe(fd) < 0) {
-        fprintf(stderr, "[ERROR] pipe creation failed: %s.\n", strerror(errno));
+        fprintf(stderr, "[ERROR] Executor: pipe creation failed - %s\n", strerror(errno));
         return;
     }
 
     pid_t left_pid = fork();
     if (left_pid < 0) {
-        fprintf(stderr, "[ERROR] left fork failed: %s\n", strerror(errno));
+        fprintf(stderr, "[ERROR] Executor: left fork failed - %s\n", strerror(errno));
         close(fd[0]);
         close(fd[1]);
         return;
@@ -200,7 +200,7 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     if (left_pid == 0) {
         // Route stdout to pipe write-end
         if (dup2(fd[1], STDOUT_FILENO) == -1) {
-            fprintf(stderr, "[ERROR] left dup2 failure: %s.\n", strerror(errno));
+            fprintf(stderr, "[ERROR] Executor: left dup2 failure - %s\n", strerror(errno));
             _exit(EXIT_FAILURE);
         }
 
@@ -215,7 +215,7 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     pid_t right_pid = fork();
 
     if (right_pid < 0) {
-        fprintf(stderr, "[ERROR] right fork failed: %s\n", strerror(errno));
+        fprintf(stderr, "[ERROR] Executor: right fork failed - %s\n", strerror(errno));
         close(fd[0]);
         close(fd[1]);
         // Reap the orphaned left child (killed via SIGPIPE) to prevent a zombie process
@@ -226,7 +226,7 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     if (right_pid == 0) {
         // Route stdin from pipe read-end
         if (dup2(fd[0], STDIN_FILENO) == -1) {
-            fprintf(stderr, "[ERROR] right dup2 failure: %s.\n", strerror(errno));
+            fprintf(stderr, "[ERROR] Executor: right dup2 failure - %s\n", strerror(errno));
             _exit(EXIT_FAILURE);
         }
         close(fd[0]);
@@ -241,10 +241,10 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     close(fd[1]);
 
     if (waitpid(left_pid, NULL, 0) == -1) {
-        fprintf(stderr, "[ERROR] waitpid(left) failed for Child PID %d: %s\n", left_pid, strerror(errno));
+        fprintf(stderr, "[ERROR] Executor: waitpid(left) failed for Child PID %d - %s\n", left_pid, strerror(errno));
     }
     if (waitpid(right_pid, NULL, 0) == -1) {
-        fprintf(stderr, "[ERROR] waitpid(right) failed for Child PID %d: %s\n", right_pid, strerror(errno));
+        fprintf(stderr, "[ERROR] Executor: waitpid(right) failed for Child PID %d - %s\n", right_pid, strerror(errno));
     }
 }
 
@@ -254,7 +254,7 @@ static void execute_parent_builtin(ast_node_t *root, ast_node_t *core_cmd) {
     int saved_err = dup(STDERR_FILENO);
 
     if (saved_in < 0 || saved_out < 0 || saved_err < 0) {
-        fprintf(stderr, "[ERROR] failed to backup file descriptors.\n");
+        fprintf(stderr, "[ERROR] Executor: failed to backup file descriptors\n");
         return;
     }
 
@@ -264,12 +264,12 @@ static void execute_parent_builtin(ast_node_t *root, ast_node_t *core_cmd) {
 
         int fd = open(redir->file, redir->open_flags, 0644);
         if (fd < 0) {
-            fprintf(stderr, "[ERROR] open failed for %s: %s\n", redir->file, strerror(errno));
+            fprintf(stderr, "[ERROR] Executor: open failed for %s - %s\n", redir->file, strerror(errno));
             goto restore_fds;
         }
 
         if (dup2(fd, redir->target_fd) == -1) {
-            fprintf(stderr, "[ERROR] dup2 failure: %s\n", strerror(errno));
+            fprintf(stderr, "[ERROR] Executor: dup2 failure - %s\n", strerror(errno));
             close(fd);
             goto restore_fds;
         }

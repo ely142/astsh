@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     sa.sa_flags = SA_RESTART;
 
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        fprintf(stderr, "[ERROR] shell: failed to bind SIGCHLD handler.\n");
+        fprintf(stderr, "[ERROR] Shell: failed to bind SIGCHLD handler\n");
         exit(EXIT_FAILURE);
     }
 
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
             int history_size = history_get_size();
 
             if (history_size == 0) {
-                fprintf(stderr, " [ERROR] History: no commands in history to execute.\n");
+                fprintf(stderr, " [ERROR] History: no commands in history to execute\n");
                 continue;
             }
 
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
             int history_size = history_get_size();
 
             if (n < 1 || n > history_size) {
-                fprintf(stderr, "[ERROR] History: index '%d' is out of bounds (1 to %d).\n", n, history_size);
+                fprintf(stderr, "[ERROR] History: index '%d' is out of bounds (1 to %d)\n", n, history_size);
                 continue;
             }
 
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
         token_t *tokens = lexer_tokenize(buffer);
 
         if (!tokens) {
-            fprintf(stderr, "[ERROR] Lexer: memory allocation failed during tokenization.\n");
+            fprintf(stderr, "[ERROR] Lexer: memory allocation failed during tokenization\n");
             continue;
         }
 
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
         lexer_free_tokens(tokens); // Contract: free tokens immediately to prevent leaks
 
         if (!ast) {
-            fprintf(stderr, "[ERROR] Parser: syntax error or failed to build AST.\n");
+            fprintf(stderr, "[ERROR] Parser: syntax error or failed to build AST\n");
             continue;
         }
 

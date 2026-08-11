@@ -274,7 +274,7 @@ int main() {
     sa.sa_flags = SA_RESTART;
 
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        fprintf(stderr, "[ERROR] Test Suite: failed to bind SIGCHLD handler.\n");
+        fprintf(stderr, "[ERROR] Test Suite: failed to bind SIGCHLD handler\n");
         return 1;
     }
 

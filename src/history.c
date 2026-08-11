@@ -20,13 +20,13 @@ void history_add(const char *command) {
     history_link_t *new_record = (history_link_t *)malloc(sizeof(history_link_t));
 
     if (new_record == NULL) {
-        fprintf(stderr, "ERROR - failed to allocate memory for new command record in history\n");
+        fprintf(stderr, "[ERROR] History: failed to allocate memory for new command record in history\n");
         exit(EXIT_FAILURE);
     }
 
     new_record->command = strdup(command);
     if (new_record->command == NULL) {
-        fprintf(stderr, "[ERROR] history: memory allocation failed for command string\n");
+        fprintf(stderr, "[ERROR] History: memory allocation failed for command string\n");
         free(new_record);
         exit(EXIT_FAILURE);
     }
@@ -77,12 +77,12 @@ void history_free() {
 
 const char *history_get(int index) {
     if (history_size == 0) {
-        fprintf(stderr, "[ERROR] history: no commands in history\n");
+        fprintf(stderr, "[ERROR] History: no commands in history\n");
         return NULL;
     }
 
     if (index < 1 || index > history_size) {
-        fprintf(stderr, "[ERROR] history: event not found\n");
+        fprintf(stderr, "[ERROR] History: event not found\n");
         return NULL;
     }
 

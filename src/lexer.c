@@ -14,7 +14,7 @@ static void append_token(token_t **tokens, int *tokens_capacity, int *tokens_siz
         *tokens_capacity *= 2;
         token_t *temp = realloc(*tokens, (*tokens_capacity) * sizeof(token_t));
         if (!temp) {
-            fprintf(stderr, "[ERROR] memory reallocation failed in lexer.\n");
+            fprintf(stderr, "[ERROR] Lexer: memory reallocation failed in lexer\n");
             exit(1);
         }
         *tokens = temp;
@@ -29,7 +29,7 @@ static void finalize_word_buffer(token_t **tokens, int *tokens_capacity, int *to
     buffer[*idx] = '\0';
     char *temp_word = strdup(buffer);
     if (!temp_word) {
-        fprintf(stderr, "[ERROR] memory allocation failed for string duplication in lexer.\n");
+        fprintf(stderr, "[ERROR] Lexer: memory allocation failed for string duplication in lexer\n");
         exit(1);
     }
     append_token(tokens, tokens_capacity, tokens_size, TOKEN_WORD, temp_word);
@@ -64,7 +64,7 @@ token_t *lexer_tokenize(const char *input) {
     bool is_quoted_token = false;
 
     if (!tokens) {
-        fprintf(stderr, "[ERROR] memory allocation failed in lexer.\n");
+        fprintf(stderr, "[ERROR] Lexer: memory allocation failed in lexer\n");
         exit(1);
     }
 
@@ -121,7 +121,7 @@ token_t *lexer_tokenize(const char *input) {
     }
 
     if (state == STATE_IN_QUOTES) {
-        fprintf(stderr, "[ERROR] missing closing quote on input command.\n");
+        fprintf(stderr, "[ERROR] Lexer: missing closing quote on input command\n");
         append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_EOF, NULL);
         lexer_free_tokens(tokens);
         return NULL;
@@ -138,7 +138,7 @@ token_t *lexer_tokenize(const char *input) {
     return tokens;
 
 handle_overflow:
-    fprintf(stderr, "[ERROR] token exceeds maximum length of %d characters.\n", WORD_BUFFER_SIZE);
+    fprintf(stderr, "[ERROR] Lexer: token exceeds maximum length of %d characters\n", WORD_BUFFER_SIZE);
     append_token(&tokens, &tokens_capacity, &tokens_size, TOKEN_EOF, NULL);
     lexer_free_tokens(tokens);
     return NULL;

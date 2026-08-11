@@ -13,7 +13,7 @@ static ast_node_t *parse_command(token_t **curr);
 static ast_node_t *create_node(ast_node_type_t type) {
     ast_node_t *new_node = calloc(1, sizeof(ast_node_t));
     if (!new_node) {
-        fprintf(stderr, "[ERROR] memory allocation failed in parser.\n");
+        fprintf(stderr, "[ERROR] Parser: memory allocation failed in parser\n");
         exit(1);
     }
     new_node->type = type;
@@ -60,7 +60,7 @@ ast_node_t *parser_build_ast(token_t *tokens) {
     ast_node_t *root = parse_job(&curr);
 
     if (root != NULL && curr->type != TOKEN_EOF) {
-        fprintf(stderr, "[ERROR] unexpected token '%s'.\n", curr->value ? curr->value : "metachar");
+        fprintf(stderr, "[ERROR] Parser: unexpected token '%s'\n", curr->value ? curr->value : "metachar");
         parser_free_ast(root);
         return NULL;
     }
@@ -109,7 +109,7 @@ static ast_node_t *parse_command(token_t **curr) {
     int argc = 0;
     cmd_node->data.command.argv = calloc(argv_capacity, sizeof(char *));
     if (!cmd_node->data.command.argv) {
-        fprintf(stderr, "[ERROR] memory allocation failed in parser.\n");
+        fprintf(stderr, "[ERROR] Parser: memory allocation failed in parser\n");
         exit(1);
     }
 
@@ -121,14 +121,14 @@ static ast_node_t *parse_command(token_t **curr) {
                 argv_capacity *= 2;
                 char **temp_argv = realloc(cmd_node->data.command.argv, argv_capacity * sizeof(char *));
                 if (!temp_argv) {
-                    fprintf(stderr, "[ERROR] memory reallocation failed in parser.\n");
+                    fprintf(stderr, "[ERROR] Parser: memory reallocation failed in parser\n");
                     exit(1);
                 }
                 cmd_node->data.command.argv = temp_argv;
             }
             char *temp_word = strdup((*curr)->value);
             if (!temp_word) {
-                fprintf(stderr, "[ERROR] memory allocation failed for string duplication in parser.\n");
+                fprintf(stderr, "[ERROR] Parser: memory allocation failed for string duplication in parser\n");
                 exit(1);
             }
             cmd_node->data.command.argv[argc++] = temp_word;
@@ -139,7 +139,7 @@ static ast_node_t *parse_command(token_t **curr) {
             (*curr)++;
 
             if ((*curr)->type != TOKEN_WORD) {
-                fprintf(stderr, "[ERROR] expected filename after redirection.\n");
+                fprintf(stderr, "[ERROR] Parser: expected filename after redirection\n");
                 // Cap the array before freeing so parser_free_ast knows where to stop
                 cmd_node->data.command.argv[argc] = NULL;
                 parser_free_ast(root);
@@ -150,7 +150,7 @@ static ast_node_t *parse_command(token_t **curr) {
             redir_node->data.redirect.child = root;
             char *temp_word = strdup((*curr)->value);
             if (!temp_word) {
-                fprintf(stderr, "[ERROR] memory allocation failed for string duplication in parser.\n");
+                fprintf(stderr, "[ERROR] Parser: memory allocation failed for string duplication in parser\n");
                 exit(1);
             }
             redir_node->data.redirect.file = temp_word;
@@ -173,7 +173,7 @@ static ast_node_t *parse_command(token_t **curr) {
 
     // For cases like: "| grep" - syntax error, "> test.txt" - isn't an error
     if (argc == 0 && root == cmd_node) {
-        fprintf(stderr, "[ERROR] invalid command syntax.\n");
+        fprintf(stderr, "[ERROR] Parser: invalid command syntax\n");
         parser_free_ast(root);
         return NULL;
     }

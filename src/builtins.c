@@ -36,7 +36,7 @@ int builtins_execute(ast_node_t *ast) {
 
     if (strcmp(argv[0], "cd") == 0) {
         if (arg_count != 2) {
-            fprintf(stderr, "[ERROR] Built-in: 'cd' requires exactly one argument.\n");
+            fprintf(stderr, "[ERROR] Built-in: 'cd' requires exactly one argument\n");
             return -1;
         }
 
@@ -55,7 +55,7 @@ int builtins_execute(ast_node_t *ast) {
     if ((strcmp(argv[0], "halt") == 0) || (strcmp(argv[0], "wakeup") == 0) || (strcmp(argv[0], "ice") == 0)) {
 
         if (arg_count != 2) {
-            fprintf(stderr, "[ERROR] Built-in: '%s' requires a valid PID argument.\n", argv[0]);
+            fprintf(stderr, "[ERROR] Built-in: '%s' requires a valid PID argument\n", argv[0]);
             return -1;
         }
 
@@ -63,12 +63,12 @@ int builtins_execute(ast_node_t *ast) {
         int pid_to_signal = atoi(argv[1]);
 
         if (pid_to_signal <= 0) {
-            fprintf(stderr, "[ERROR] Built-in: invalid PID '%s' provided to '%s'.\n", argv[1], argv[0]);
+            fprintf(stderr, "[ERROR] Built-in: invalid PID '%s' provided to '%s'\n", argv[1], argv[0]);
             return -1;
         }
 
         if (jobs_execute_signal(argv[0], pid_to_signal) == -1) {
-            fprintf(stderr, "[ERROR] Built-in: failed to send '%s' signal to PID %d.\n", argv[0], pid_to_signal);
+            fprintf(stderr, "[ERROR] Built-in: failed to send '%s' signal to PID %d\n", argv[0], pid_to_signal);
             return -1;
         }
         return 0;

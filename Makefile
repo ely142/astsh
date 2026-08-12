@@ -8,7 +8,7 @@ INC_DIR = include
 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes
 
-TARGETS = $(OBJ_DIR)/shell $(OBJ_DIR)/looper
+TARGETS = $(OBJ_DIR)/astsh $(OBJ_DIR)/looper
 
 SHELL_OBJS = $(OBJ_DIR)/main.o \
              $(OBJ_DIR)/history.o \
@@ -22,7 +22,7 @@ LOOPER_OBJS = $(OBJ_DIR)/looper.o
 
 all: $(TARGETS) 
 
-$(OBJ_DIR)/shell: $(SHELL_OBJS)
+$(OBJ_DIR)/astsh: $(SHELL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
 $(OBJ_DIR)/looper: $(LOOPER_OBJS)
@@ -62,7 +62,7 @@ valgrind_parser: $(OBJ_DIR)/test_parser
 valgrind_executor: $(OBJ_DIR)/test_executor
 	$(VALGRIND) ./$<
 
-valgrind_shell: $(OBJ_DIR)/shell
+valgrind_shell: $(OBJ_DIR)/astsh
 	$(VALGRIND) ./$<
     
 .PHONY: all clean test_lexer test_parser test_executor valgrind_lexer valgrind_parser valgrind_executor valgrind_shell

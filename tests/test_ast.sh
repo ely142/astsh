@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SHELL_EXEC="./build/shell"
+SHELL_EXEC="./build/astsh"
 TEMP_DIR="tests/tmp"
 
 TESTS_PASSED=0

@@ -7,7 +7,11 @@
 
 **astsh** is a modular, UNIX-style shell interpreter. Engineered around a strict **Lexer ➔ Parser ➔ Executor** pipeline, the shell transforms raw input via an FSM-based lexer into an Abstract Syntax Tree (AST) for deterministic evaluation. It handles multi-process lifecycles, n-degree pipeline execution, and standard I/O redirection utilizing standard POSIX system calls. The environment integrates asynchronous job control, signal routing, and state-aware built-ins for directory navigation, command history, and process monitoring.
 
-## Tech Stack
+<div align="center">
+  <img src="./assets/demo.gif" alt="astsh execution demonstration" width="100%">
+</div>
+
+## 🛠️ Tech Stack
 
 *   **Language:** C (`std=gnu17`)
 *   **Compiler & Build:** GCC, GNU Make

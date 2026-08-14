@@ -19,6 +19,7 @@ static void execute_process(ast_node_t *node);
 static void exec_background(node_background_t *bg);
 static void exec_pipe(node_pipe_t *pipe_node);
 static void execute_parent_builtin(ast_node_t *root, ast_node_t *core_cmd);
+static const char *get_job_name(ast_node_t *node);
 
 void executor_run_ast(ast_node_t *node) {
     if (!node)
@@ -155,6 +156,21 @@ static void execute_process(ast_node_t *node) {
     _exit(EXIT_FAILURE);
 }
 
+static const char *get_job_name(ast_node_t *node) {
+    while (node) {
+        if (node->type == NODE_COMMAND && node->data.command.argv[0]) {
+            return node->data.command.argv[0];
+        } else if (node->type == NODE_PIPE) {
+            node = node->data.pipe.left;
+        } else if (node->type == NODE_REDIRECT) {
+            node = node->data.redirect.child;
+        } else {
+            break;
+        }
+    }
+    return "unknown_job";
+}
+
 static void exec_background(node_background_t *bg) {
     if (!bg || !bg->child)
         return;
@@ -191,13 +207,8 @@ static void exec_background(node_background_t *bg) {
         printf("[Started background job, PID: %d]\n", pid);
     }
 
-    // Register the job
-    const char *cmd_name = "unknown_job";
-
-    if (bg->child->type == NODE_COMMAND && bg->child->data.command.argv[0]) {
-        cmd_name = bg->child->data.command.argv[0];
-    }
-
+    // Register the job with the name of the first executable command
+    const char *cmd_name = get_job_name(bg->child);
     jobs_add_process(cmd_name, pid);
 
     sigprocmask(SIG_SETMASK, &prev_mask, NULL);

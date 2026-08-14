@@ -56,7 +56,7 @@ void jobs_print() {
     process_t *curr = process_list;
     process_t *prev = NULL;
 
-    printf("Index\t\tPID\t\tSTATUS\t\tCommand\n");
+    printf("%-8s %-10s %-15s %s\n", "Index", "PID", "STATUS", "Command");
     int index = 0;
 
     while (curr) {
@@ -64,7 +64,7 @@ void jobs_print() {
                            : (curr->status == SUSPENDED) ? "Suspended"
                                                          : "Terminated";
 
-        printf("%d\t\t%d\t\t%s\t\t%s\n", index, curr->pid, stat, curr->cmd_name);
+        printf("%-8d %-10d %-15s %s\n", index, curr->pid, stat, curr->cmd_name);
         index++;
 
         // Clean freshly terminated processes from the list

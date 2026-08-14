@@ -69,9 +69,17 @@ void executor_run_ast(ast_node_t *node) {
             break;
         }
 
-        case NODE_PIPE:
+        case NODE_PIPE: {
+            sigset_t mask, prev_mask;
+            sigemptyset(&mask);
+            sigaddset(&mask, SIGCHLD);
+            sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
             exec_pipe(&node->data.pipe);
+
+            sigprocmask(SIG_SETMASK, &prev_mask, NULL);
             break;
+        }
 
         case NODE_BACKGROUND:
             exec_background(&node->data.background);
@@ -83,12 +91,20 @@ void executor_run_ast(ast_node_t *node) {
 }
 
 static void execute_process(ast_node_t *node) {
+    // Contract: child processes must not inherit the shell's async job reaper
+    signal(SIGCHLD, SIG_DFL);
+
     while (node) {
         switch (node->type) {
             case NODE_COMMAND: {
                 char **argv = node->data.command.argv;
 
                 if (argv && argv[0]) {
+                    if (builtins_is_command(argv[0])) {
+                        builtins_execute(node);
+                        _exit(EXIT_SUCCESS);
+                    }
+
                     signal(SIGINT, SIG_DFL);
                     execvp(argv[0], argv);
                     fprintf(stderr, "[ERROR] Executor: %s - %s\n", argv[0], strerror(errno));
@@ -143,14 +159,22 @@ static void exec_background(node_background_t *bg) {
     if (!bg || !bg->child)
         return;
 
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
     pid_t pid = fork();
 
     if (pid < 0) {
         fprintf(stderr, "[ERROR] Executor: [PARENT PID %d] process creation failed - %s\n", getpid(), strerror(errno));
+        sigprocmask(SIG_SETMASK, &prev_mask, NULL);
         return;
     }
 
     if (pid == 0) {
+        sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+
         if (setpgid(0, 0) < 0) {
             fprintf(stderr, "[ERROR] Executor: failed to set background process group - %s\n", strerror(errno));
             _exit(EXIT_FAILURE);
@@ -175,6 +199,8 @@ static void exec_background(node_background_t *bg) {
     }
 
     jobs_add_process(cmd_name, pid);
+
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
 static void exec_pipe(node_pipe_t *pipe_node) {

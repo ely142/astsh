@@ -23,7 +23,7 @@ static void update_process_status(int pid, int status) {
     }
 }
 
-void jobs_add_process(const char *cmd_name, pid_t pid) {
+void jobs_add_process(const char *cmd_name, pid_t pid, int initial_status) {
     // Block SIGCHLD to prevent list traversal race conditions
     sigset_t mask, prev_mask;
     sigemptyset(&mask);
@@ -40,7 +40,7 @@ void jobs_add_process(const char *cmd_name, pid_t pid) {
     // Deep copy the string to ensure memory safety
     new_proc->cmd_name = strdup(cmd_name ? cmd_name : "unknown_job");
     new_proc->pid = pid;
-    new_proc->status = RUNNING; // Default state
+    new_proc->status = initial_status;
     new_proc->next = process_list;
     process_list = new_proc;
 

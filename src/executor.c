@@ -65,7 +65,15 @@ void executor_run_ast(ast_node_t *node) {
                 execute_process(node);
             }
 
-            waitpid(pid, NULL, 0);
+            int status;
+            waitpid(pid, &status, WUNTRACED);
+
+            if (WIFSTOPPED(status)) {
+                const char *cmd_name = get_job_name(node);
+                printf("\n[INFO] Jobs: process %d (%s) suspended (SIGTSTP).\n", pid, cmd_name);
+                jobs_add_process(cmd_name, pid, SUSPENDED);
+            }
+
             sigprocmask(SIG_SETMASK, &prev_mask, NULL);
             break;
         }
@@ -107,6 +115,10 @@ static void execute_process(ast_node_t *node) {
                     }
 
                     signal(SIGINT, SIG_DFL);
+                    signal(SIGTSTP, SIG_DFL);
+                    signal(SIGTTIN, SIG_DFL);
+                    signal(SIGTTOU, SIG_DFL);
+
                     execvp(argv[0], argv);
                     fprintf(stderr, "[ERROR] Executor: %s - %s\n", argv[0], strerror(errno));
                 }
@@ -209,7 +221,7 @@ static void exec_background(node_background_t *bg) {
 
     // Register the job with the name of the first executable command
     const char *cmd_name = get_job_name(bg->child);
-    jobs_add_process(cmd_name, pid);
+    jobs_add_process(cmd_name, pid, RUNNING);
 
     sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
@@ -277,10 +289,21 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     close(fd[0]);
     close(fd[1]);
 
-    if (waitpid(left_pid, NULL, 0) == -1) {
+    int left_status, right_status;
+
+    if (waitpid(left_pid, &left_status, WUNTRACED) != -1) {
+        if (WIFSTOPPED(left_status)) {
+            jobs_add_process(get_job_name(pipe_node->left), left_pid, SUSPENDED);
+        }
+    } else {
         fprintf(stderr, "[ERROR] Executor: waitpid(left) failed for Child PID %d - %s\n", left_pid, strerror(errno));
     }
-    if (waitpid(right_pid, NULL, 0) == -1) {
+
+    if (waitpid(right_pid, &right_status, WUNTRACED) != -1) {
+        if (WIFSTOPPED(right_status)) {
+            jobs_add_process(get_job_name(pipe_node->right), right_pid, SUSPENDED);
+        }
+    } else {
         fprintf(stderr, "[ERROR] Executor: waitpid(right) failed for Child PID %d - %s\n", right_pid, strerror(errno));
     }
 }

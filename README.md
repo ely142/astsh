@@ -94,7 +94,7 @@ make test_executor
 Execute the automated test script to validate overall shell functionality: 
 
 ```bash
-./tests/test_ast.sh
+bash tests/test_ast.sh
 ```
 
 The suite performs end-to-end verification of REPL edge cases, shell pipelines, background job signaling, and I/O redirection, followed by a Valgrind memory check.

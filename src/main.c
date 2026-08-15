@@ -34,6 +34,9 @@ void prompt();
 int main(int argc, char **argv) {
 
     signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
 
     char buffer[BUFFER_SIZE];
 
@@ -63,13 +66,21 @@ int main(int argc, char **argv) {
                 printf("\n");
                 continue;
             }
-            printf("\n");
-            break; // Contract: EOF (Ctrl+D) triggers a graceful exit
+
+            // Strict EOF validation: only exit if the user actually pressed Ctrl+D
+            if (feof(stdin)) {
+                printf("\n");
+                break;
+            }
+
+            // Defend against EIO: terminal rejected the read (process group conflict)
+            clearerr(stdin);
+            continue;
         }
 
         buffer[strcspn(buffer, "\n")] = '\0';
 
-        // Efficiency: Skip empty or whitespace-only strings immediately
+        // Efficiency: skip empty or whitespace-only strings immediately
         int is_empty = 1;
         for (int i = 0; buffer[i] != '\0'; i++) {
             if (buffer[i] != ' ' && buffer[i] != '\t') {

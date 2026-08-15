@@ -14,7 +14,7 @@ typedef struct process {
     struct process *next;
 } process_t;
 
-void jobs_add_process(const char *cmd_name, pid_t pid);
+void jobs_add_process(const char *cmd_name, pid_t pid, int initial_status);
 void jobs_print();
 void jobs_free();
 void jobs_sigchld_handler(int sig);

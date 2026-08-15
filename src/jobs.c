@@ -23,7 +23,7 @@ static void update_process_status(int pid, int status) {
     }
 }
 
-void jobs_add_process(const char *cmd_name, pid_t pid) {
+void jobs_add_process(const char *cmd_name, pid_t pid, int initial_status) {
     // Block SIGCHLD to prevent list traversal race conditions
     sigset_t mask, prev_mask;
     sigemptyset(&mask);
@@ -40,7 +40,7 @@ void jobs_add_process(const char *cmd_name, pid_t pid) {
     // Deep copy the string to ensure memory safety
     new_proc->cmd_name = strdup(cmd_name ? cmd_name : "unknown_job");
     new_proc->pid = pid;
-    new_proc->status = RUNNING; // Default state
+    new_proc->status = initial_status;
     new_proc->next = process_list;
     process_list = new_proc;
 
@@ -56,7 +56,7 @@ void jobs_print() {
     process_t *curr = process_list;
     process_t *prev = NULL;
 
-    printf("Index\t\tPID\t\tSTATUS\t\tCommand\n");
+    printf("%-8s %-10s %-15s %s\n", "Index", "PID", "STATUS", "Command");
     int index = 0;
 
     while (curr) {
@@ -64,7 +64,7 @@ void jobs_print() {
                            : (curr->status == SUSPENDED) ? "Suspended"
                                                          : "Terminated";
 
-        printf("%d\t\t%d\t\t%s\t\t%s\n", index, curr->pid, stat, curr->cmd_name);
+        printf("%-8d %-10d %-15s %s\n", index, curr->pid, stat, curr->cmd_name);
         index++;
 
         // Clean freshly terminated processes from the list

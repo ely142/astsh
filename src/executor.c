@@ -19,6 +19,7 @@ static void execute_process(ast_node_t *node);
 static void exec_background(node_background_t *bg);
 static void exec_pipe(node_pipe_t *pipe_node);
 static void execute_parent_builtin(ast_node_t *root, ast_node_t *core_cmd);
+static const char *get_job_name(ast_node_t *node);
 
 void executor_run_ast(ast_node_t *node) {
     if (!node)
@@ -64,14 +65,30 @@ void executor_run_ast(ast_node_t *node) {
                 execute_process(node);
             }
 
-            waitpid(pid, NULL, 0);
+            int status;
+            waitpid(pid, &status, WUNTRACED);
+
+            if (WIFSTOPPED(status)) {
+                const char *cmd_name = get_job_name(node);
+                printf("\n[INFO] Jobs: process %d (%s) suspended (SIGTSTP).\n", pid, cmd_name);
+                jobs_add_process(cmd_name, pid, SUSPENDED);
+            }
+
             sigprocmask(SIG_SETMASK, &prev_mask, NULL);
             break;
         }
 
-        case NODE_PIPE:
+        case NODE_PIPE: {
+            sigset_t mask, prev_mask;
+            sigemptyset(&mask);
+            sigaddset(&mask, SIGCHLD);
+            sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+
             exec_pipe(&node->data.pipe);
+
+            sigprocmask(SIG_SETMASK, &prev_mask, NULL);
             break;
+        }
 
         case NODE_BACKGROUND:
             exec_background(&node->data.background);
@@ -83,13 +100,25 @@ void executor_run_ast(ast_node_t *node) {
 }
 
 static void execute_process(ast_node_t *node) {
+    // Contract: child processes must not inherit the shell's async job reaper
+    signal(SIGCHLD, SIG_DFL);
+
     while (node) {
         switch (node->type) {
             case NODE_COMMAND: {
                 char **argv = node->data.command.argv;
 
                 if (argv && argv[0]) {
+                    if (builtins_is_command(argv[0])) {
+                        builtins_execute(node);
+                        _exit(EXIT_SUCCESS);
+                    }
+
                     signal(SIGINT, SIG_DFL);
+                    signal(SIGTSTP, SIG_DFL);
+                    signal(SIGTTIN, SIG_DFL);
+                    signal(SIGTTOU, SIG_DFL);
+
                     execvp(argv[0], argv);
                     fprintf(stderr, "[ERROR] Executor: %s - %s\n", argv[0], strerror(errno));
                 }
@@ -139,18 +168,41 @@ static void execute_process(ast_node_t *node) {
     _exit(EXIT_FAILURE);
 }
 
+static const char *get_job_name(ast_node_t *node) {
+    while (node) {
+        if (node->type == NODE_COMMAND && node->data.command.argv[0]) {
+            return node->data.command.argv[0];
+        } else if (node->type == NODE_PIPE) {
+            node = node->data.pipe.left;
+        } else if (node->type == NODE_REDIRECT) {
+            node = node->data.redirect.child;
+        } else {
+            break;
+        }
+    }
+    return "unknown_job";
+}
+
 static void exec_background(node_background_t *bg) {
     if (!bg || !bg->child)
         return;
+
+    sigset_t mask, prev_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
 
     pid_t pid = fork();
 
     if (pid < 0) {
         fprintf(stderr, "[ERROR] Executor: [PARENT PID %d] process creation failed - %s\n", getpid(), strerror(errno));
+        sigprocmask(SIG_SETMASK, &prev_mask, NULL);
         return;
     }
 
     if (pid == 0) {
+        sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+
         if (setpgid(0, 0) < 0) {
             fprintf(stderr, "[ERROR] Executor: failed to set background process group - %s\n", strerror(errno));
             _exit(EXIT_FAILURE);
@@ -167,14 +219,11 @@ static void exec_background(node_background_t *bg) {
         printf("[Started background job, PID: %d]\n", pid);
     }
 
-    // Register the job
-    const char *cmd_name = "unknown_job";
+    // Register the job with the name of the first executable command
+    const char *cmd_name = get_job_name(bg->child);
+    jobs_add_process(cmd_name, pid, RUNNING);
 
-    if (bg->child->type == NODE_COMMAND && bg->child->data.command.argv[0]) {
-        cmd_name = bg->child->data.command.argv[0];
-    }
-
-    jobs_add_process(cmd_name, pid);
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
 }
 
 static void exec_pipe(node_pipe_t *pipe_node) {
@@ -240,10 +289,21 @@ static void exec_pipe(node_pipe_t *pipe_node) {
     close(fd[0]);
     close(fd[1]);
 
-    if (waitpid(left_pid, NULL, 0) == -1) {
+    int left_status, right_status;
+
+    if (waitpid(left_pid, &left_status, WUNTRACED) != -1) {
+        if (WIFSTOPPED(left_status)) {
+            jobs_add_process(get_job_name(pipe_node->left), left_pid, SUSPENDED);
+        }
+    } else {
         fprintf(stderr, "[ERROR] Executor: waitpid(left) failed for Child PID %d - %s\n", left_pid, strerror(errno));
     }
-    if (waitpid(right_pid, NULL, 0) == -1) {
+
+    if (waitpid(right_pid, &right_status, WUNTRACED) != -1) {
+        if (WIFSTOPPED(right_status)) {
+            jobs_add_process(get_job_name(pipe_node->right), right_pid, SUSPENDED);
+        }
+    } else {
         fprintf(stderr, "[ERROR] Executor: waitpid(right) failed for Child PID %d - %s\n", right_pid, strerror(errno));
     }
 }

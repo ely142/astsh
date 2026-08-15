@@ -111,6 +111,8 @@ make valgrind_executor
 make valgrind_shell
 ```
 
+> ⚠️ *Testing Constraint:* Test job control natively. Valgrind's signal interception interferes with terminal process group handoffs (`tcsetpgrp`, `SIGTTOU`), causing artificial hangs. **Avoid using Valgrind for background suspension (`Ctrl+Z`) and signal-heavy job routing.** 
+
 ## 📂 Folder Structure
 
 ```text

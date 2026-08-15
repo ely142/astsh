@@ -124,6 +124,7 @@ astsh/
 │   └── parser.h       # AST node structures and parser declarations
 ├── src/               # Core C implementations
 │   ├── main.c         # REPL loop, signal handling, and shell initialization
+│   ├── looper.c       # Dummy executable for testing job control
 │   └── ...            # Corresponding .c files for all includes
 ├── tests/             # Unit test source files and E2E bash scripts
 ├── assets/            # Static media and documentation graphics

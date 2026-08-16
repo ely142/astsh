@@ -94,7 +94,7 @@ make test_executor
 Execute the automated test script to validate overall shell functionality: 
 
 ```bash
-./tests/test_ast.sh
+bash tests/test_ast.sh
 ```
 
 The suite performs end-to-end verification of REPL edge cases, shell pipelines, background job signaling, and I/O redirection, followed by a Valgrind memory check.
@@ -111,6 +111,8 @@ make valgrind_executor
 make valgrind_shell
 ```
 
+> ⚠️ *Testing Constraint:* Test job control natively. Valgrind's signal interception interferes with terminal process group handoffs (`tcsetpgrp`, `SIGTTOU`), causing artificial hangs. **Avoid using Valgrind for background suspension (`Ctrl+Z`) and signal-heavy job routing.** 
+
 ## 📂 Folder Structure
 
 ```text
@@ -124,6 +126,7 @@ astsh/
 │   └── parser.h       # AST node structures and parser declarations
 ├── src/               # Core C implementations
 │   ├── main.c         # REPL loop, signal handling, and shell initialization
+│   ├── looper.c       # Dummy executable for testing job control
 │   └── ...            # Corresponding .c files for all includes
 ├── tests/             # Unit test source files and E2E bash scripts
 ├── assets/            # Static media and documentation graphics

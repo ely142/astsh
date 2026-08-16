@@ -1,5 +1,34 @@
+# Build & Object Artifacts
 build/
-.vs/
-.vscode/
+*.o
+*.a
+*.so
+*.dylib
+*.out
+
+# Executables & Tests
+# Safeguard in case they are generated in the project root instead of build/
+astsh
+test_lexer
+test_parser
+test_executor
+
+# Debug, Valgrind & Crash Logs
 core
+core.*
+vgcore.*
 *.gdb
+*.gdb_history
+*.dSYM/
+
+# IDEs & Tooling
+.vscode/
+.vs/
+.idea/
+compile_commands.json
+tags
+cscope.*
+
+# OS-Specific Noise
+.DS_Store
+*~

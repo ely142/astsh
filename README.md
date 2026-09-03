@@ -194,3 +194,19 @@ The executor traverses the AST, translating node types directly into POSIX syste
 
 ### 4. Memory Reclamation (Cleanup)
 Following execution, the parent REPL loop regains control and systematically deallocates the AST. Because the execution phase utilizes `dup()` for state mutation rather than `fork()` for built-ins, the parent process remains stable, clean, and ready to prompt the user for the next command.
+
+---
+
+Copyright (c) 2026. All rights reserved.
+
+This software and associated documentation files (the "Software") are provided for personal, non-commercial, and portfolio purposes only. 
+
+Subject to the rights granted by GitHub's Terms of Service, no part of this Software may be reproduced, modified, merged, published, distributed, sublicensed, sold, or otherwise utilized without the express written permission of the copyright owner.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
